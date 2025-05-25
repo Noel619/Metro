@@ -1,8 +1,22 @@
 # -*- coding: utf-8 -*-
 # Basic structure for a text-based RPG
-import random 
+import random
 import json # For saving and loading
 import copy # For deepcopying game state
+import tkinter as tk
+from tkinter import Menu, simpledialog, messagebox, filedialog
+# Attempt to import Pillow (PIL)
+try:
+    from PIL import Image, ImageTk
+except ImportError:
+    # If Pillow is not installed, this subtask should include instructions
+    # to the user or attempt to install it if the environment allows.
+    # For now, we'll assume the worker can install it.
+    # If direct installation within the subtask isn't feasible,
+    # the subtask should report back that Pillow needs to be installed.
+    messagebox.showerror("Error", "Pillow library is not installed. Please install it to use image features (e.g., pip install Pillow)") # Or parent=None if self is not available
+    # Then raise an error or return to prevent further execution of this specific feature
+    raise ImportError("Pillow library not found. Please install it.")
 
 # --- Item Display Names (Spanish) ---
 ITEM_DISPLAY_NAMES = {
@@ -840,5 +854,257 @@ def handle_quit(args):
     print("¡Gracias por jugar!") 
     exit()
 
+# --- Placeholder Functions ---
+def new_game_placeholder():
+    """Displays a placeholder message for the 'New Game' option."""
+    messagebox.showinfo("New Game", "New Game - Not Implemented Yet")
+
+# --- Main Application Class ---
+class MainApplication(tk.Tk):
+    """Main application window for the Metro Game and Editor."""
+    def __init__(self):
+        """Initializes the main application window and its menu."""
+        super().__init__()
+        self.title("Map Editor and Game")
+        self.geometry("800x600")
+
+        menubar = Menu(self)
+        self.config(menu=menubar)
+
+        main_menu = Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Menu", menu=main_menu)
+
+        main_menu.add_command(label="New Game", command=new_game_placeholder)
+        main_menu.add_command(label="Editor", command=self.open_editor_window)
+        main_menu.add_separator()
+        main_menu.add_command(label="Exit", command=self.quit)
+
+        self.editor_window = None # Attribute to hold the editor window instance
+
+    def open_editor_window(self):
+        """Opens the Province Editor window. Creates a new instance if one doesn't exist
+        or brings the existing one to the front."""
+        if self.editor_window is None or not self.editor_window.winfo_exists():
+            self.editor_window = EditorWindow(self) # Pass self as parent
+            self.editor_window.focus_set() 
+        else:
+            self.editor_window.focus_set() 
+
+# --- EditorWindow Class ---
+class EditorWindow(tk.Toplevel):
+    """Editor window for creating and managing map provinces."""
+    def __init__(self, parent):
+        """Initializes the Editor window, its widgets, and variables."""
+        super().__init__(parent)
+        self.title("Province Editor")
+        self.geometry("1000x750") 
+
+        # Image display attributes
+        self.image_on_canvas = None # ID of the image object on the canvas
+        self.photo_image = None   # PhotoImage object (to prevent garbage-collection)
+        
+        # Point and province data storage
+        self.drawn_points_visuals = []    # Stores IDs of ovals drawn for current points
+        self.current_province_points = [] # Stores (x,y) tuples for the province currently being defined
+        self.provinces_visuals = []       # Stores IDs of province polygons drawn on the canvas
+        self.provinces_data = []          # Stores lists of (x,y) tuples, each list defining a province
+
+        menubar = Menu(self)
+        self.config(menu=menubar)
+
+        file_menu = Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Load Reference Image", command=self.load_reference_image)
+        file_menu.add_separator()
+        file_menu.add_command(label="Close Editor", command=self.destroy)
+
+        # Frame for Canvas to allow button placement below
+        canvas_frame = tk.Frame(self)
+        canvas_frame.pack(pady=5, padx=10, expand=True, fill=tk.BOTH)
+
+        self.map_canvas = tk.Canvas(canvas_frame, bg="lightgrey") # Removed fixed size to allow expand
+        self.map_canvas.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+        
+        self.map_canvas.bind("<Button-1>", self.place_point_on_canvas)
+
+        # Button to create province
+        self.create_province_button = tk.Button(self, text="Create Province", command=self.create_province)
+        self.create_province_button.pack(pady=5, side=tk.BOTTOM) # Explicitly pack at bottom
+
+    def load_reference_image(self):
+        """Opens a file dialog to load a reference image onto the canvas."""
+        try:
+            # Ensure Pillow is available (this check is also at top-level import)
+            from PIL import Image, ImageTk
+        except ImportError:
+            messagebox.showerror("Error", "Pillow library is not installed or couldn't be loaded. Please install it to use image features (e.g., pip install Pillow).", parent=self)
+            return
+
+        file_path = filedialog.askopenfilename(
+            parent=self,
+            title="Select a Reference Image",
+            filetypes=[("Image Files", "*.png *.jpg *.jpeg *.gif *.bmp"), ("All Files", "*.*")]
+        )
+
+        if not file_path: # User cancelled
+            return
+
+        try:
+            # Open the image using Pillow
+            image = Image.open(file_path)
+
+            # Convert the Pillow image to a Tkinter PhotoImage
+            self.photo_image = ImageTk.PhotoImage(image)
+
+            # Clear previous image if any
+            if self.image_on_canvas:
+                self.map_canvas.delete(self.image_on_canvas)
+
+            # Display the image on the canvas
+            # Place image at top-left corner (0,0) with anchor 'nw' (north-west)
+            self.image_on_canvas = self.map_canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_image)
+            
+            # When new image loaded, clear all previously drawn provinces and points
+            self.clear_all_provinces_and_points()
+            
+            # Optional: Configure canvas scrollregion if image is larger than canvas
+            # self.map_canvas.config(scrollregion=self.map_canvas.bbox(tk.ALL))
+            
+            # Optional: Resize canvas to fit image (can be complex if image is very large)
+            # self.map_canvas.config(width=self.photo_image.width(), height=self.photo_image.height())
+            # self.map_canvas.pack_propagate(False) # Prevent canvas from shrinking to original pack size
+
+            print(f"Loaded image: {file_path}")
+
+        except FileNotFoundError:
+            messagebox.showerror("Error", f"File not found: {file_path}", parent=self)
+        except Exception as e:
+            messagebox.showerror("Error Loading Image", f"An error occurred: {e}", parent=self)
+            print(f"Error loading image: {e}")
+
+    def place_point_on_canvas(self, event):
+        """Places a point on the canvas at the clicked coordinates (event.x, event.y)."""
+        x, y = event.x, event.y
+        self.current_province_points.append((x, y))
+        
+        # Draw a visual representation of the point (small red circle)
+        radius = 4 
+        # The tag "point_marker" can be used to manage these visuals if needed later
+        point_visual_id = self.map_canvas.create_oval(
+            x - radius, y - radius, x + radius, y + radius, 
+            fill="red", outline="red", tags="point_marker"
+        )
+        self.drawn_points_visuals.append(point_visual_id)
+        
+        print(f"Point placed at: ({x}, {y}). Current points for province: {self.current_province_points}")
+
+    def create_province(self):
+        """Creates a province polygon from the currently placed points."""
+        if len(self.current_province_points) < 3:
+            messagebox.showwarning(
+                "Create Province", 
+                "You need at least 3 points to create a province.", 
+                parent=self
+            )
+            return
+
+        # Create the polygon on the canvas
+        # Style options:
+        # - outline: Color of the border
+        # - fill: Fill color of the polygon
+        # - width: Border width in pixels
+        # - stipple: Pattern for the fill (e.g., "gray50", "gray25") for pseudo-transparency
+        # - tags: Allows grouping and managing canvas items
+        polygon_id = self.map_canvas.create_polygon(
+            self.current_province_points,
+            outline="blue",        
+            fill="blue",           
+            width=2,               
+            stipple="gray25",      
+            tags="province_polygon" 
+        )
+        self.provinces_visuals.append(polygon_id) # Store the visual ID
+        
+        # Store the coordinate data for this province (make a copy)
+        self.provinces_data.append(list(self.current_province_points))
+
+        print(f"Province created with {len(self.current_province_points)} points: {self.current_province_points}")
+
+        # Clear current points (visuals and data) to ready for a new province
+        self.clear_current_points()
+
+    def clear_current_points(self):
+        """Clears the points that are currently being placed (not yet a full province)."""
+        for visual_id in self.drawn_points_visuals:
+            self.map_canvas.delete(visual_id)
+        self.drawn_points_visuals.clear()
+        self.current_province_points.clear()
+        print("Current (active) points cleared from canvas and memory.")
+
+    def clear_all_provinces_and_points(self):
+        """Clears all drawn provinces and any currently active points."""
+        self.clear_current_points() # Clear any active, unformed points first
+        
+        for province_visual_id in self.provinces_visuals:
+            self.map_canvas.delete(province_visual_id)
+        self.provinces_visuals.clear()
+        self.provinces_data.clear()
+        print("All provinces and active points cleared from canvas and data.")
+        
+    # Add other editor methods here later (e.g., saving/loading provinces, editing existing ones)
+
 # --- Command Parser ---
->>>>>>> REPLACE
+command_handlers = {
+    "look": handle_look,
+    "go": handle_go,
+    "take": handle_take,
+    "inventory": handle_inventory,
+    "inv": handle_inventory,
+    "quit": handle_quit,
+    "exit": handle_quit,
+    "help": handle_help,
+    "stats": handle_stats,
+    "attack": handle_attack,
+    "fight": handle_attack, 
+    "talk": handle_talk, 
+    "quests": handle_quests,
+    "journal": handle_quests,
+    "use": handle_use_item,
+    "save": handle_save_game,
+    "load": handle_load_game,
+}
+
+# --- Main Game Loop ---
+if __name__ == "__main__":
+    # print("Bienvenido al Metro. Escribe 'help' para ver los comandos.")
+    # handle_look([]) 
+
+    # while True:
+    #     try:
+    #         user_input = input("> ").strip().lower()
+    #         if not user_input:
+    #             continue
+
+    #         parts = user_input.split()
+    #         command = parts[0]
+    #         args = parts[1:]
+
+    #         if command in command_handlers:
+    #             command_handlers[command](args)
+    #             if player_stats["current_health"] <= 0: # Check for game over after command
+    #                 break
+    #         else:
+    #             print("Comando desconocido. Escribe 'help' para ver la lista de comandos.")
+    #     except EOFError: # Handle Ctrl+D or end of input stream
+    #         print("\nSaliendo del juego...")
+    #         break
+    #     except KeyboardInterrupt: # Handle Ctrl+C
+    #         print("\nInterrupción del teclado. Saliendo del juego...")
+    #         break
+    #     except Exception as e: # Catch any other unexpected errors
+    #         print(f"Ha ocurrido un error inesperado: {e}")
+    #         print("Intentando guardar el progreso...")
+    #         handle_save_game([]) # Attempt to save before potential crash
+    #         break 
+    app = MainApplication()
+    app.mainloop()
