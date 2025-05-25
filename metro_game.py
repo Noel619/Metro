@@ -1,152 +1,180 @@
+# -*- coding: utf-8 -*-
 # Basic structure for a text-based RPG
 import random 
 import json # For saving and loading
 import copy # For deepcopying game state
 
+# --- Item Display Names (Spanish) ---
+ITEM_DISPLAY_NAMES = {
+    "rusty_pipe": "tubo oxidado",
+    "old_ticket": "billete viejo",
+    "newspaper": "periódico",
+    "empty_bottle": "botella vacía",
+    "ration_pack": "paquete de raciones",
+    "rope": "cuerda",
+    "glowing_fungus": "hongo brillante",
+    "scrap_metal": "chatarra",
+    "rat_tail": "cola de rata",
+    "ammo_scraps": "restos de munición", 
+    "mutant_claws": "garras de mutante", 
+    "crowbar": "palanca",
+    "old_map_fragment": "fragmento de mapa viejo",
+    "antique_glasses": "gafas antiguas", 
+    "moldy_bread": "pan mohoso", 
+    "ammo_clip": "cargador de munición",
+    "first_aid_kit": "botiquín de primeros auxilios",
+    "bandage": "venda",
+    "battery": "batería",
+    "copper_wire": "cable de cobre",
+    "old_book": "libro viejo",
+    "reading_glasses": "gafas de lectura", 
+    "valuable_book": "libro valioso", 
+    "circuit_board": "placa de circuito",
+    "log_entry_1": "entrada de diario 1",
+    "cache_of_military_rounds": "reserva de munición militar"
+}
+
 # --- Game World ---
 world = {
     "station_entrance": {
-        "description": "You are at the entrance of a dimly lit metro station. Stairs lead down into the darkness. The air is stale and a faint metallic scent hangs in the air. An old man in greasy overalls, Engineer Elias, tinkers with a flickering lamp nearby.",
+        "description": "Estás en la entrada de una estación de metro tenuemente iluminada. Unas escaleras descienden hacia la oscuridad. El aire está viciado y un leve olor metálico flota en el ambiente. Un anciano con mono grasiento, el Ingeniero Elías, juguetea con una lámpara parpadeante cercana.",
         "exits": {"down": "platform", "east": "security_checkpoint"},
-        "items": ["rusty_pipe"],
+        "items": ["rusty_pipe"], 
         "details": {
-            "stairs": "The stairs are made of cracked concrete, disappearing into the gloom below.",
-            "lamp": "The lamp sputters, casting dancing shadows. Elias seems focused on fixing it."
+            "stairs": "Las escaleras son de hormigón agrietado y desaparecen en la penumbra inferior.",
+            "lamp": "La lámpara chisporrotea, proyectando sombras danzantes. Elías parece concentrado en arreglarla."
         },
         "npcs": {
             "elias": { 
-                "name": "Engineer Elias",
-                "description": "Engineer Elias is an old but sturdy man. He looks weary but his eyes show a spark of determination.",
+                "name": "Ingeniero Elías",
+                "description": "El Ingeniero Elías es un hombre anciano pero robusto. Parece cansado, pero sus ojos muestran una chispa de determinación.",
                 "dialogue": {
-                    "greeting": "Hmph. Another wanderer. Most just scavenge these days. Are you looking for something more?",
-                    "offer_main_quest": "This old station... it's dying. But there's a communication array in the old Control Room, deep in the tunnels. If someone could reach it, maybe... just maybe, we could send a signal, find out if there's anyone else out there. The way is through the old Engine Room, south of the main platform. Will you try to reach the Control Room?",
-                    "quest_accepted": "Good. Be careful. The tunnels are treacherous. Find the Engine Room, which has a door to the Control Room.", # Changed this line
-                    "quest_reminder": "You need to get to the Control Room. It should be accessible from the Engine Room.",
-                    "quest_completed_already": "You've done well with the array. There's nothing more I can ask of you for that.",
-                    "default": "Keep your wits about you in those tunnels."
+                    "greeting": "Mmm. Otro trotamundos. La mayoría solo busca chatarra estos días. ¿Tú buscas algo más?",
+                    "offer_main_quest": "Esta vieja estación... se está muriendo. Pero hay una antena de comunicaciones en la antigua Sala de Control, en lo profundo de los túneles. Si alguien pudiera llegar hasta ella, tal vez... solo tal vez, podríamos enviar una señal, averiguar si queda alguien más ahí fuera. El camino es a través de la vieja Sala de Máquinas, al sur del andén principal. ¿Intentarás llegar a la Sala de Control?",
+                    "quest_accepted": "Bien. Ten cuidado. Los túneles son traicioneros. Encuentra la Sala de Máquinas, que tiene una puerta a la Sala de Control.",
+                    "quest_reminder": "Necesitas llegar a la Sala de Control. Debería ser accesible desde la Sala de Máquinas.",
+                    "quest_completed_already": "Has hecho un buen trabajo con la antena. No hay nada más que pueda pedirte al respecto.",
+                    "default": "Mantente alerta en esos túneles."
                 },
                 "quest_id": "main_comms_array" 
             }
         }
     },
     "platform": {
-        "description": "You are on a dusty platform. An old, stationary train rests here. Faint echoes of dripping water can be heard.",
+        "description": "Estás en un andén polvoriento. Un viejo tren inmóvil descansa aquí. Se oyen débiles ecos de agua goteando.",
         "exits": {"up": "station_entrance", "train": "train_car", "south": "flooded_tunnel", "west": "market_station"},
         "items": ["old_ticket"]
     },
     "train_car": {
-        "description": "You are inside a graffiti-covered train car. The seats are torn and the floor is littered with debris. The doors are jammed open to the platform.",
+        "description": "Estás dentro de un vagón de tren cubierto de grafitis. Los asientos están rasgados y el suelo lleno de escombros. Las puertas están atascadas, abiertas hacia el andén.",
         "exits": {"platform": "platform"},
         "items": ["newspaper", "empty_bottle"]
     },
     "market_station": {
-        "description": "This section of the tunnels has been converted into a makeshift market. Stalls made of scrap metal line the walls, dimly lit by flickering lanterns. A gruff-looking Vendor eyes you from behind a counter.",
+        "description": "Esta sección de los túneles ha sido convertida en un mercado improvisado. Puestos hechos de chatarra se alinean en las paredes, tenuemente iluminados por farolillos parpadeantes. Un Vendedor de aspecto rudo te observa desde detrás de un mostrador.",
         "exits": {"east": "platform", "north": "abandoned_depot"},
         "items": ["ration_pack", "rope"],
         "npcs": {
-            "vendor": { # Changed to new NPC structure
-                "name": "Vendor",
-                "description": "The Vendor is a burly figure with a scarred face. He doesn't say much, just watches your every move.",
+            "vendor": { 
+                "name": "Vendedor",
+                "description": "El Vendedor es una figura corpulenta con una cara llena de cicatrices. No habla mucho, solo observa cada uno de tus movimientos.",
                 "dialogue": {
-                    "greeting": "Need something or just browsing?",
-                    "default": "Don't cause any trouble."
+                    "greeting": "¿Necesitas algo o solo estás mirando?",
+                    "default": "No causes problemas."
                 }
-                # No quest_id for the vendor for now
             }
         }
     },
     "flooded_tunnel": {
-        "description": "Water pools ankle-deep in this tunnel, and the air is damp and cold. Strange fungi glow faintly on the walls. A narrow, slippery walkway skirts the edge of the deeper water. You hear faint skittering sounds and sometimes catch a glimpse of something moving in the shadows.",
+        "description": "El agua llega hasta los tobillos en este túnel, y el aire es húmedo y frío. Extraños hongos brillan tenuemente en las paredes. Una pasarela estrecha y resbaladiza bordea el agua más profunda. Oyes débiles correteos y a veces vislumbras algo moviéndose en las sombras.",
         "exits": {"north": "platform", "south": "engine_room"},
         "items": ["glowing_fungus", "scrap_metal"],
         "enemies": [
-            {"name": "Giant Rat", "description": "A large, aggressive rodent, common in these tunnels.", "health": 8, "attack_power": 3, "agility": 2, "loot": ["rat_tail"], "xp_value": 25}, # Made loot a list, adjusted XP
-            {"name": "Lurker", "description": "A shadowy figure that seems to blend with the dim light. Its eyes glint, and it moves with an unsettling speed, making it hard to get a clear shot.", "health": 35, "attack_power": 6, "loot": ["ammo_scraps", "mutant_claws"], "xp_value": 75}
+            {"name": "Rata Gigante", "description": "Un roedor grande y agresivo, común en estos túneles.", "health": 8, "attack_power": 3, "agility": 2, "loot": ["rat_tail"], "xp_value": 25},
+            {"name": "Acechador", "description": "Una figura sombría que parece mezclarse con la tenue luz. Sus ojos brillan y se mueve con una velocidad inquietante, lo que dificulta acertarle.", "health": 35, "attack_power": 6, "loot": ["ammo_scraps", "mutant_claws"], "xp_value": 75}
         ]
     },
     "abandoned_depot": {
-        "description": "An old train depot, filled with rusting hulks of metro cars. Cobwebs hang thick as curtains, and the silence is unnerving. A faint scurrying sound and the occasional clatter of metal echoes from deeper within. It feels like you're being watched by desperate eyes.",
+        "description": "Una vieja cochera de trenes, llena de armazones oxidados de vagones de metro. Las telarañas cuelgan espesas como cortinas y el silencio es desconcertante. Un leve correteo y el ocasional ruido metálico resuenan desde el interior. Sientes como si te observaran ojos desesperados.",
         "exits": {"south": "market_station"},
         "items": ["crowbar", "old_map_fragment", "antique_glasses"], 
         "enemies": [
-            {"name": "Feral Human Scavenger", "description": "A gaunt Feral Human, darting between shadows, clutching a rusty shiv.", "health": 18, "attack_power": 7, "loot": ["scrap_metal", "bandage"], "xp_value": 45},
-            {"name": "Feral Human Bruiser", "description": "A larger, more imposing Feral Human, wielding a heavy pipe with menace.", "health": 25, "attack_power": 9, "loot": ["scrap_metal", "bandage", "moldy_bread"], "xp_value": 60}
+            {"name": "Humano Salvaje Carroñero", "description": "Un Humano Salvaje demacrado, moviéndose entre las sombras, agarrando una daga oxidada.", "health": 18, "attack_power": 7, "loot": ["scrap_metal", "bandage"], "xp_value": 45},
+            {"name": "Humano Salvaje Matón", "description": "Un Humano Salvaje más grande e imponente, blandiendo una pesada tubería con aire amenazante.", "health": 25, "attack_power": 9, "loot": ["scrap_metal", "bandage", "moldy_bread"], "xp_value": 60}
         ]
     },
     "security_checkpoint": {
-        "description": "A deserted security checkpoint. Barricades are pushed aside, and a guard booth stands empty, its window cracked. Warning posters about mutants are peeling from the walls. Guard Captain Dimitri stands watch, looking grim.",
+        "description": "Un puesto de control desierto. Las barricadas están apartadas y una garita de guardia está vacía, con la ventana rota. Carteles de advertencia sobre mutantes se despegan de las paredes. El Capitán Dimitri monta guardia, con aspecto sombrío.",
         "exits": {"west": "station_entrance", "east": "makeshift_library"},
         "items": ["ammo_clip", "first_aid_kit"],
         "npcs": {
             "dimitri": {
-                "name": "Guard Captain Dimitri",
-                "description": "Dimitri is a stern-faced man in worn guard armor. He has the weary look of someone who's seen too much.",
+                "name": "Capitán Dimitri",
+                "description": "Dimitri es un hombre de rostro severo con una armadura de guardia desgastada. Tiene la mirada cansada de alguien que ha visto demasiado.",
                 "dialogue": {
-                    "greeting": "Halt! State your business. This checkpoint is on high alert.",
-                    "offer_tunnel_clearing_quest": "The old depot nearby has become a nest for Feral Humans. They're getting bolder, threatening our perimeter. We need someone to go in there and... discourage them. Permanently. Clear out two of them, and I can make it worth your while. Interested?",
-                    "quest_accepted": "Good. Watch yourself. They're fast and desperate. Two less of them will make this area safer for everyone.",
-                    "quest_reminder_incomplete": "The Feral Human problem in the depot isn't resolved yet. I need you to take down {remaining} more of them.",
-                    # "quest_reminder_complete" removed as it's confusing; completion is direct.
-                    "completion": "You've thinned out those Ferals? Good work. Not many would take that risk. Here's your payment - a cache of military-grade rounds. And you've earned this.", # Changed reward description
-                    "quest_completed_already": "Thanks again for clearing out that nest. Things have been quieter.",
-                    "default": "Stay vigilant. The tunnels are never truly safe."
+                    "greeting": "¡Alto! Identifícate. Este puesto de control está en alerta máxima.",
+                    "offer_tunnel_clearing_quest": "La vieja cochera cercana se ha convertido en un nido de Humanos Salvajes. Se están volviendo más audaces, amenazando nuestro perímetro. Necesitamos a alguien que entre allí y... los disuada. Permanentemente. Elimina a dos de ellos y haré que valga la pena. ¿Interesado?",
+                    "quest_accepted": "Bien. Ten cuidado. Son rápidos y están desesperados. Dos menos de ellos harán esta zona más segura para todos.",
+                    "quest_reminder_incomplete": "El problema de los Humanos Salvajes en la cochera aún no está resuelto. Necesito que elimines a {remaining} más.",
+                    "completion": "¿Has diezmado a esos Salvajes? Buen trabajo. No muchos se arriesgarían. Aquí tienes tu paga: una reserva de munición militar. Y te has ganado esto.",
+                    "quest_completed_already": "Gracias de nuevo por limpiar ese nido. Las cosas han estado más tranquilas.",
+                    "default": "Mantente vigilante. Los túneles nunca son verdaderamente seguros."
                 },
                 "quest_id": "tunnel_clearing_quest",
-                "reward_item": "cache_of_military_rounds", # Changed to a single item string
-                # "reward_item_qty" removed, as it's now a single item.
+                "reward_item": "cache_of_military_rounds",
                 "xp_reward": 100
             }
         }
     },
     "engine_room": {
-        "description": "The air hums with the sound of ancient generators. The room is hot and filled with the smell of oil and ozone. Catwalks crisscross above massive, chugging machinery. A reinforced door is set into the far wall, marked 'CONTROL ROOM'.",
-        "exits": {"north": "flooded_tunnel", "south": "control_room"}, # New exit to control_room
+        "description": "El aire vibra con el sonido de generadores antiguos. La sala está caliente y llena de olor a aceite y ozono. Pasarelas cruzan por encima de maquinaria masiva y ruidosa. Una puerta reforzada está incrustada en la pared del fondo, con la inscripción 'SALA DE CONTROL'.",
+        "exits": {"north": "flooded_tunnel", "south": "control_room"},
         "items": ["battery", "copper_wire"]
     },
     "makeshift_library": {
-        "description": "Someone has turned this quiet alcove into a small library. Shelves made of crates hold a surprisingly large collection of pre-war books. Librarian Agnes, an elderly woman, is meticulously organizing scrolls.",
+        "description": "Alguien ha convertido este tranquilo rincón en una pequeña biblioteca. Estanterías hechas de cajas contienen una sorprendente colección de libros de antes de la guerra. La Bibliotecaria Agnes, una mujer anciana, organiza meticulosamente unos pergaminos.",
         "exits": {"west": "security_checkpoint"},
         "items": ["old_book", "reading_glasses"], 
         "npcs": {
             "agnes": { 
-                "name": "Librarian Agnes", 
-                "description": "Librarian Agnes is a thin, elderly woman with kind eyes. She seems worried about something.",
+                "name": "Bibliotecaria Agnes", 
+                "description": "La Bibliotecaria Agnes es una mujer delgada y anciana con ojos amables. Parece preocupada por algo.",
                 "dialogue": {
-                    "greeting": "Oh, hello dear. Welcome to our little sanctuary of knowledge.",
-                    "offer_side_quest": "I seem to have misplaced my antique reading glasses. They're not very good for reading anymore, but they have... sentimental value. I think I might have left them in the old Abandoned Depot when I was looking for salvage. Could you possibly keep an eye out for them if you're heading that way?",
-                    "quest_accepted": "Oh, thank you, dear! That would be wonderful. They are a pair of simple, wire-rimmed glasses.",
-                    "quest_reminder": "Have you found my antique glasses? I believe they might be in the Abandoned Depot.",
-                    "quest_item_not_found": "Oh, you don't seem to have them with you. Well, do keep looking if you can. I'd be ever so grateful.",
-                    "completion": "My glasses! Oh, thank you, thank you! I know they're just old things, but they meant a lot to me. Please, take this valuable book as a token of my gratitude. It's a rare pre-war edition.",
-                    "quest_completed_already": "Thank you again for finding my glasses, dear. That book I gave you is quite special."
+                    "greeting": "Oh, hola querido/a. Bienvenido/a a nuestro pequeño santuario del saber.",
+                    "offer_side_quest": "Parece que he perdido mis antiguas gafas de leer. Ya no sirven mucho para leer, pero tienen... valor sentimental. Creo que las dejé en la vieja Cochera Abandonada cuando buscaba trastos. ¿Podrías echar un vistazo si vas por allí?",
+                    "quest_accepted": "¡Oh, gracias, querido/a! Sería maravilloso. Son unas gafas sencillas, con montura de alambre.",
+                    "quest_reminder": "¿Has encontrado mis gafas antiguas? Creo que podrían estar en la Cochera Abandonada.",
+                    "quest_item_not_found": "Oh, parece que no las tienes contigo. Bueno, sigue buscando si puedes. Te lo agradecería enormemente.",
+                    "completion": "¡Mis gafas! ¡Oh, gracias, gracias! Sé que son solo cosas viejas, pero significaban mucho para mí. Por favor, toma este libro valioso como muestra de mi gratitud. Es una edición rara de antes de la guerra.",
+                    "quest_completed_already": "Gracias de nuevo por encontrar mis gafas, querido/a. Ese libro que te di es bastante especial."
                 },
                 "quest_id": "side_librarian_glasses",
                 "quest_item_needed": "antique_glasses", 
                 "reward_item": "valuable_book",
-                "xp_reward": 75  # XP reward for completing this side quest
+                "xp_reward": 75
             }
         },
         "details": {
-            "shelves": "The shelves are crammed with books of all kinds, from technical manuals to tattered novels."
+            "shelves": "Las estanterías están repletas de libros de todo tipo, desde manuales técnicos hasta novelas andrajosas."
         }
     },
     "control_room": {
-        "description": "This must be the Control Room Elias mentioned. Dust-covered consoles line the walls, their screens dark. A large central terminal hums faintly. There's a panel here that looks like it could be activated.",
+        "description": "Esta debe ser la Sala de Control que mencionó Elías. Consolas cubiertas de polvo bordean las paredes, con las pantallas oscuras. Una gran terminal central zumba débilmente. Hay un panel aquí que parece que podría activarse.",
         "exits": {"north": "engine_room"},
-        "items": ["circuit_board", "log_entry_1"], # Added a log entry for flavor
+        "items": ["circuit_board", "log_entry_1"],
         "details": {
-            "consoles": "Most consoles are dead, but a few flicker with residual power. One displays a garbled message: '...SYSTEM OFFLINE...AUX_POWER_LOW...MAIN_ARRAY_STATUS: UNKNOWN...'",
-            "terminal": "The main terminal seems to be drawing power. A small maintenance hatch is open on its side.",
-            "panel": "A large, inviting button on the panel glows faintly green. It's labeled 'COMM_ARRAY_ACTIVATION'."
+            "consoles": "La mayoría de las consolas están muertas, pero algunas parpadean con energía residual. Una muestra un mensaje confuso: '...SISTEMA OFFLINE...ENERGÍA_AUX_BAJA...ESTADO_ANTENA_PRINCIPAL: DESCONOCIDO...'",
+            "terminal": "La terminal principal parece estar consumiendo energía. Una pequeña escotilla de mantenimiento está abierta en un lateral.",
+            "panel": "Un botón grande y atractivo en el panel brilla débilmente en verde. Está etiquetado como 'ACTIVACIÓN_ANTENA_COMMS'."
         },
-        "on_enter_event": "main_quest_control_room_entry" # For main quest completion logic in handle_go
+        "on_enter_event": "main_quest_control_room_entry"
     }
 }
 
 # --- Player ---
 player_inventory = []
 player_stats = {
-    "name": "Survivor",
+    "name": "Superviviente", # Default name in Spanish
     "max_health": 20,
     "current_health": 20,
     "strength": 5, 
@@ -154,75 +182,65 @@ player_stats = {
     "level": 1,
     "xp": 0,
     "xp_to_next_level": 100,
-    "first_aid_skill": 1 # Base first aid skill
+    "first_aid_skill": 1 
 }
 player_quests = {
     "main_comms_array": "inactive", 
     "side_librarian_glasses": "inactive",
-    "tunnel_clearing_quest": "inactive" # Added new quest
+    "tunnel_clearing_quest": "inactive" 
 }
 current_location = "station_entrance"
-
-# --- Enemy Definitions (can be expanded) ---
-# Enemies will be placed directly in the location data.
-# Example structure for an enemy in a location's 'enemies' list:
-# {'name': 'Mutant Rat', 'health': 5, 'attack_power': 2, 'agility': 1, 'loot': 'rat_tail'}
-
 
 # --- Command Handlers ---
 def handle_stats(args):
     """Handles the 'stats' command."""
-    print(f"\n--- {player_stats['name']}'s Stats ---")
-    print(f"Level: {player_stats['level']}")
+    print(f"\n--- Estadísticas de {player_stats['name']} ---")
+    print(f"Nivel: {player_stats['level']}")
     print(f"XP: {player_stats['xp']}/{player_stats['xp_to_next_level']}")
-    print(f"Health: {player_stats['current_health']}/{player_stats['max_health']}")
-    print(f"Strength: {player_stats['strength']}")
-    print(f"Agility: {player_stats['agility']}")
-    print(f"First Aid Skill: {player_stats['first_aid_skill']}")
+    print(f"Salud: {player_stats['current_health']}/{player_stats['max_health']}")
+    print(f"Fuerza: {player_stats['strength']}")
+    print(f"Agilidad: {player_stats['agility']}")
+    print(f"Habilidad Primeros Auxilios: {player_stats['first_aid_skill']}")
     print("--------------------")
 
 # --- XP and Leveling System ---
 def handle_level_up_stat_increase():
     """Allows player to choose a stat to increase upon leveling up."""
     global player_stats
-    print("\nCongratulations! You feel more experienced. Choose a stat to improve:")
-    print("  1. Vigor (+5 Max Health, heal +5 HP or to full)")
-    print("  2. Prowess (+1 Strength)")
-    print("  3. Finesse (+1 Agility)")
+    print("\n¡Enhorabuena! Te sientes con más experiencia. Elige una estadística para mejorar:")
+    print("  1. Vigor (+5 Salud Máx., curación completa)")
+    print("  2. Destreza (+1 Fuerza)")
+    print("  3. Finura (+1 Agilidad)")
 
     while True:
-        choice = input("Enter your choice (1-3): ").strip()
+        choice = input("Introduce tu elección (1-3): ").strip()
         if choice == "1":
             player_stats["max_health"] += 5
-            # Heal player by the amount gained, or to full, whichever is less on top of current.
-            # More simply, just set current_health to max_health after increase.
             player_stats["current_health"] = player_stats["max_health"] 
-            print(f"Your maximum health increased to {player_stats['max_health']}! You feel more resilient and are fully healed.")
+            print(f"¡Tu salud máxima aumentó a {player_stats['max_health']}! Te sientes más resistente y estás completamente curado/a.")
             break
         elif choice == "2":
             player_stats["strength"] += 1
-            print(f"Your strength increased to {player_stats['strength']}! You feel more powerful.")
+            print(f"¡Tu fuerza aumentó a {player_stats['strength']}! Te sientes más poderoso/a.")
             break
         elif choice == "3":
             player_stats["agility"] += 1
-            print(f"Your agility increased to {player_stats['agility']}! You feel quicker.")
+            print(f"¡Tu agilidad aumentó a {player_stats['agility']}! Te sientes más ágil.")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 3.")
-    handle_stats([]) # Display updated stats
+            print("Elección inválida. Por favor, introduce un número entre 1 y 3.")
+    handle_stats([]) 
 
 def check_level_up():
     """Checks if the player has enough XP to level up and handles the process."""
     global player_stats
     if player_stats["xp"] >= player_stats["xp_to_next_level"]:
         player_stats["level"] += 1
-        player_stats["xp"] -= player_stats["xp_to_next_level"] # Carry over remaining XP
-        player_stats["xp_to_next_level"] = player_stats["level"] * 100 # Example: Next level needs Level * 100 XP
+        player_stats["xp"] -= player_stats["xp_to_next_level"] 
+        player_stats["xp_to_next_level"] = player_stats["level"] * 100 
         
-        print(f"\n*** LEVEL UP! You reached Level {player_stats['level']}! ***")
+        print(f"\n*** ¡SUBISTE DE NIVEL! ¡Has alcanzado el Nivel {player_stats['level']}! ***")
         handle_level_up_stat_increase()
-        # In case of multiple level ups from a large XP gain, recursively check
-        # This is a simple way; a loop in gain_xp would be more robust for massive XP gains.
         check_level_up() 
 
 def gain_xp(amount):
@@ -231,33 +249,33 @@ def gain_xp(amount):
     if amount <= 0:
         return
     
-    print(f"\nYou gained {amount} XP.")
+    print(f"\nHas ganado {amount} XP.")
     player_stats["xp"] += amount
     check_level_up()
 # --- End XP and Leveling System ---
 
 def handle_help(args):
     """Handles the 'help' command."""
-    print("\n--- Available Commands ---")
-    print("  look              - Describe your current location, including items, NPCs, and enemies.")
-    print("  look at [thing]   - Describe a specific item, NPC, or detail in your location.")
-    print("  go [direction]    - Move in the specified direction (e.g., 'go north').")
-    print("  take [item]       - Pick up an item from your location and add it to your inventory.")
-    print("  inventory / inv   - Show the items you are currently carrying.")
-    print("  stats             - Display your character's current health and attributes.")
-    print("  attack [target]   - Attack an enemy in your current location (e.g., 'attack rat').")
-    print("  fight [target]    - Alias for 'attack'.")
-    print("  talk to [npc]     - Speak with an NPC in your current location (e.g., 'talk to elias').")
-    print("  quests / journal  - View the status of your current quests.")
-    print("  use [item]        - Use an item from your inventory (e.g., 'use first_aid_kit').")
-    print("  save              - Save your current game progress.")
-    print("  load              - Load your previously saved game.")
-    print("  help              - Show this list of commands.")
-    print("  quit / exit       - Exit the game.")
+    print("\n--- Comandos Disponibles ---")
+    print("  look              - Describe tu ubicación actual, incluyendo objetos, NPCs y enemigos.")
+    print("  look at [cosa]    - Describe un objeto específico, NPC o detalle en tu ubicación.")
+    print("  go [dirección]    - Muévete en la dirección especificada (ej: 'go north').")
+    print("  take [objeto]     - Recoge un objeto de tu ubicación y añádelo a tu inventario.")
+    print("  inventory / inv   - Muestra los objetos que llevas actualmente.")
+    print("  stats             - Muestra la salud y atributos actuales de tu personaje.")
+    print(f"  attack [objetivo] - Ataca a un enemigo en tu ubicación actual (ej: 'attack {world['flooded_tunnel']['enemies'][0]['name']}')") 
+    print("  fight [objetivo]  - Alias para 'attack'.")
+    print(f"  talk to [npc]     - Habla con un NPC en tu ubicación actual (ej: 'talk to {world['station_entrance']['npcs']['elias']['name']}')") 
+    print("  quests / journal  - Ve el estado de tus misiones actuales.")
+    print(f"  use [objeto]      - Usa un objeto de tu inventario (ej: 'use {ITEM_DISPLAY_NAMES.get('first_aid_kit', 'first_aid_kit')}').") 
+    print("  save              - Guarda tu progreso actual en el juego.")
+    print("  load              - Carga tu partida guardada previamente.")
+    print("  help              - Muestra esta lista de comandos.")
+    print("  quit / exit       - Salir del juego.")
     print("--------------------")
 
 # --- Save/Load Game Functionality ---
-SAVE_FILE_NAME = "metro_savegame.json"
+SAVE_FILE_NAME = "metro_savegame.json" 
 
 def handle_save_game(args):
     """Saves the current game state to a file."""
@@ -266,41 +284,40 @@ def handle_save_game(args):
     game_state = {
         "player_stats": copy.deepcopy(player_stats),
         "player_inventory": copy.deepcopy(player_inventory),
-        "current_location": current_location, # String, so direct copy is fine
+        "current_location": current_location, 
         "player_quests": copy.deepcopy(player_quests),
-        "world": copy.deepcopy(world) # Save the entire world state
+        "world": copy.deepcopy(world) 
     }
     
     try:
-        with open(SAVE_FILE_NAME, 'w') as f:
-            json.dump(game_state, f, indent=4) # indent for readability if opened manually
-        print("Game saved.")
+        with open(SAVE_FILE_NAME, 'w', encoding='utf-8') as f: 
+            json.dump(game_state, f, indent=4, ensure_ascii=False) 
+        print("Partida guardada.")
     except IOError:
-        print("Error: Could not save game.")
+        print("Error: No se pudo guardar la partida.")
 
 def handle_load_game(args):
     """Loads the game state from a file."""
     global player_stats, player_inventory, current_location, player_quests, world
     
     try:
-        with open(SAVE_FILE_NAME, 'r') as f:
+        with open(SAVE_FILE_NAME, 'r', encoding='utf-8') as f: 
             game_state = json.load(f)
             
-            # Restore game state
             player_stats = game_state["player_stats"]
             player_inventory = game_state["player_inventory"]
             current_location = game_state["current_location"]
             player_quests = game_state["player_quests"]
-            world = game_state["world"] # Crucial: restore the modified world
+            world = game_state["world"] 
             
-            print("\nGame loaded.")
-            handle_look([]) # Show current location after loading
+            print("\nPartida cargada.")
+            handle_look([]) 
     except FileNotFoundError:
-        print("No saved game found.")
+        print("No se encontró ninguna partida guardada.")
     except IOError:
-        print("Error: Could not load game.")
+        print("Error: No se pudo cargar la partida.")
     except json.JSONDecodeError:
-        print("Error: Save file is corrupted.")
+        print("Error: El archivo de guardado está corrupto.")
 
 
 # --- Item Usage Handler ---
@@ -310,22 +327,30 @@ def handle_use_item(args):
     global player_inventory
 
     if not args:
-        print("Use what? (e.g., 'use first_aid_kit')")
+        print(f"¿Usar qué? (ej: 'use {ITEM_DISPLAY_NAMES.get('first_aid_kit', 'first_aid_kit')}')") 
         return
 
-    item_to_use = "_".join(args).lower() # Allow for multi-word items like "first_aid_kit"
+    item_to_use_input = " ".join(args).lower() 
+    
+    item_internal_key = None
+    for key, display_name in ITEM_DISPLAY_NAMES.items():
+        if item_to_use_input == display_name.lower():
+            item_internal_key = key
+            break
+    if not item_internal_key: 
+        item_internal_key = item_to_use_input
 
-    if item_to_use not in player_inventory:
-        print(f"You don't have a {item_to_use} in your inventory.")
+    if item_internal_key not in player_inventory: 
+        print(f"No tienes {item_to_use_input} en tu inventario.") 
         return
 
-    if item_to_use == "first_aid_kit":
+    if item_internal_key == "first_aid_kit": 
         if player_stats["current_health"] >= player_stats["max_health"]:
-            print("You are already at full health. No need to use a first_aid_kit.")
+            print(f"Ya estás con la salud al máximo. No necesitas usar un {ITEM_DISPLAY_NAMES.get('first_aid_kit', 'botiquín')}.")
             return
 
         base_heal = 15
-        skill_bonus = player_stats.get("first_aid_skill", 1) * 5 # Default to skill 1 if somehow not set
+        skill_bonus = player_stats.get("first_aid_skill", 1) * 5 
         total_heal = base_heal + skill_bonus
         
         healed_amount = 0
@@ -336,17 +361,17 @@ def handle_use_item(args):
             healed_amount = total_heal
             player_stats["current_health"] += total_heal
             
-        player_inventory.remove("first_aid_kit") # Remove one kit
-        print(f"You used a first_aid_kit and healed for {healed_amount} HP.")
-        print(f"Your current health is now {player_stats['current_health']}/{player_stats['max_health']}.")
+        player_inventory.remove("first_aid_kit") 
+        print(f"Has usado un {ITEM_DISPLAY_NAMES.get('first_aid_kit', 'botiquín')} y te has curado {healed_amount} PS.") 
+        print(f"Tu salud actual es {player_stats['current_health']}/{player_stats['max_health']}.")
     
     
-    elif item_to_use == "bandage":
+    elif item_internal_key == "bandage": 
         if player_stats["current_health"] >= player_stats["max_health"]:
-            print("You are already at full health. No need to use a bandage.")
+            print(f"Ya estás con la salud al máximo. No necesitas usar una {ITEM_DISPLAY_NAMES.get('bandage', 'venda')}.")
             return
         
-        heal_amount = 10 # Bandages heal a fixed amount
+        heal_amount = 10 
         
         actual_healed = 0
         if player_stats["current_health"] + heal_amount > player_stats["max_health"]:
@@ -357,70 +382,69 @@ def handle_use_item(args):
             player_stats["current_health"] += heal_amount
             
         player_inventory.remove("bandage")
-        print(f"You apply a bandage and heal for {actual_healed} HP.")
-        print(f"Your current health is now {player_stats['current_health']}/{player_stats['max_health']}.")
-
-    # Example for ration_pack if it becomes usable
-    # elif item_to_use == "ration_pack":
-    #     print("You eat the ration pack. It's not great, but it's filling.")
-    #     # Potentially restore a small amount of health or hunger if that was a mechanic
-    #     player_inventory.remove("ration_pack")
-    #     # gain_xp(5) # Small XP for using an item? (Optional)
+        print(f"Te aplicas una {ITEM_DISPLAY_NAMES.get('bandage', 'venda')} y te curas {actual_healed} PS.") 
+        print(f"Tu salud actual es {player_stats['current_health']}/{player_stats['max_health']}.")
 
     else:
-        print(f"You can't use the {item_to_use} in that way (or it's not usable).")
+        print(f"No puedes usar {item_to_use_input} de esa manera (o no es utilizable).")
 
 
 def handle_quests(args):
     """Handles the 'quests' or 'journal' command."""
     global player_quests
-    print("\n--- Your Quests ---")
+    print("\n--- Tus Misiones ---") 
     active_quests_found = False
     completed_quests_found = False
 
-    # Main Quest: Comms Array
+    main_quest_title = "La Señal"
     if player_quests.get("main_comms_array") == "active":
-        print("- (Active) The Signal: Reach the Control Room to investigate the old communication array. Elias mentioned it's accessible via the Engine Room.")
+        print(f"- (Activa) {main_quest_title}: Alcanza la Sala de Control para investigar la vieja antena de comunicaciones. Elías mencionó que es accesible por la Sala de Máquinas.")
         active_quests_found = True
     elif player_quests.get("main_comms_array") == "completed":
-        print("- (Completed) The Signal: You reached the Control Room and activated the communication array panel.")
+        print(f"- (Completada) {main_quest_title}: Llegaste a la Sala de Control y activaste el panel de la antena de comunicaciones.")
         completed_quests_found = True
     
-    # Side Quest: Librarian's Glasses
+    side_quest_1_title = "Objetos Perdidos"
     if player_quests.get("side_librarian_glasses") == "active":
-        print("- (Active) Lost & Found: Find Librarian Agnes's antique_glasses. She thinks they are in the Abandoned Depot.")
+        print(f"- (Activa) {side_quest_1_title}: Encuentra las {ITEM_DISPLAY_NAMES.get('antique_glasses', 'gafas antiguas')} de la Bibliotecaria Agnes. Cree que están en la Cochera Abandonada.")
         active_quests_found = True
     elif player_quests.get("side_librarian_glasses") == "completed":
-        print("- (Completed) Lost & Found: You returned the antique_glasses to Librarian Agnes and received a valuable_book.")
+        print(f"- (Completada) {side_quest_1_title}: Devolviste las {ITEM_DISPLAY_NAMES.get('antique_glasses', 'gafas antiguas')} a la Bibliotecaria Agnes y recibiste un {ITEM_DISPLAY_NAMES.get('valuable_book', 'libro valioso')}.")
         completed_quests_found = True
 
-    # Tunnel Clearing Quest
+    side_quest_2_title = "Limpieza de Túnel"
     tunnel_quest_data = player_quests.get("tunnel_clearing_quest")
-    if isinstance(tunnel_quest_data, dict): # Quest is active or completed and has data
+    if isinstance(tunnel_quest_data, dict): 
         defeated = tunnel_quest_data.get('humans_defeated', 0)
         required = tunnel_quest_data.get('humans_required', 2)
         if tunnel_quest_data.get('status') == "active":
-            print(f"- (Active) Tunnel Clearing: Defeat Feral Humans in the Abandoned Depot for Captain Dimitri. ({defeated}/{required} defeated)")
+            print(f"- (Activa) {side_quest_2_title}: Derrota a los Humanos Salvajes en la Cochera Abandonada para el Capitán Dimitri. ({defeated}/{required} derrotados)")
             active_quests_found = True
         elif tunnel_quest_data.get('status') == "completed":
-            print(f"- (Completed) Tunnel Clearing: You cleared out the Feral Humans for Captain Dimitri.")
+            print(f"- (Completada) {side_quest_2_title}: Eliminaste a los Humanos Salvajes para el Capitán Dimitri.")
             completed_quests_found = True
-    elif tunnel_quest_data == "inactive": # Standard inactive string state
-        # Not usually shown unless no other quests are active/completed
+    elif tunnel_quest_data == "inactive": 
         pass
 
 
     if not active_quests_found and not completed_quests_found:
-        # Check if there are any quests at all, even if all are inactive
-        if any(status == "inactive" for status in player_quests.values()):
-             print("You have potential quests available. Try talking to people in the stations.")
-        else: # This case should ideally not be hit if quests are defined
-            print("You have no quests at this time.")
+        has_inactive_quests = False
+        if player_quests.get("main_comms_array") == "inactive": has_inactive_quests = True
+        if player_quests.get("side_librarian_glasses") == "inactive": has_inactive_quests = True
+        tunnel_quest_status = player_quests.get("tunnel_clearing_quest") 
+        if isinstance(tunnel_quest_status, str) and tunnel_quest_status == "inactive": 
+            has_inactive_quests = True
+        elif isinstance(tunnel_quest_status, dict) and tunnel_quest_status.get("status") == "inactive": 
+             has_inactive_quests = True 
+        
+        if has_inactive_quests:
+             print("Tienes misiones potenciales disponibles. Intenta hablar con la gente en las estaciones.")
+        else: 
+            print("No tienes misiones activas o completadas en este momento.")
     elif not active_quests_found and completed_quests_found:
-        print("You have no active quests, only completed ones.")
+        print("No tienes misiones activas, solo completadas.")
     elif active_quests_found and not completed_quests_found:
-        pass # Already printed active quests
-    # If both are true, both sections are printed.
+        pass 
     print("--------------------")
 
 def handle_look(args):
@@ -429,305 +453,327 @@ def handle_look(args):
     global player_quests
     location_data = world.get(current_location)
     if not location_data:
-        print("Error: Unknown location!")
+        print("Error: ¡Ubicación desconocida!") 
         return
 
-    print(location_data["description"])
+    print(location_data["description"]) 
 
     if location_data.get("npcs"):
         for npc_id, npc_data_val in location_data["npcs"].items():
-            if isinstance(npc_data_val, dict): # New NPC structure
+            if isinstance(npc_data_val, dict): 
                 npc_name_display = npc_data_val.get("name", npc_id.capitalize())
-                base_desc = npc_data_val.get("description", f"You see {npc_name_display}.")
+                base_desc = npc_data_val.get("description", f"Ves a {npc_name_display}.") 
                 
                 quest_hint = ""
                 npc_quest_id = npc_data_val.get("quest_id")
-                # Only show "wants to talk" hint if there's an actual quest to offer
                 dialogues = npc_data_val.get("dialogue", {})
                 has_offer_dialogue = any(key.startswith("offer_") for key in dialogues)
 
-                if npc_quest_id and player_quests.get(npc_quest_id) == "inactive" and has_offer_dialogue:
-                    quest_hint = f" {npc_name_display} looks like they might want to talk. (Try 'talk to {npc_id}')"
+                actual_quest_status = player_quests.get(npc_quest_id)
+                is_inactive = False
+                if isinstance(actual_quest_status, dict):
+                    is_inactive = actual_quest_status.get("status") == "inactive"
+                else:
+                    is_inactive = actual_quest_status == "inactive"
+
+                if npc_quest_id and is_inactive and has_offer_dialogue:
+                    quest_hint = f" {npc_name_display} parece querer hablar. (Intenta 'talk to {npc_id}')"
                 print(base_desc + quest_hint)
-            else: # Old format NPC description (just a string)
-                print(f"You see {npc_id.capitalize()}. {npc_data_val}") # Should be less common now
+            else: 
+                print(f"Ves a {npc_id.capitalize()}. {npc_data_val}") 
 
     if location_data.get("enemies"):
-        print("Enemies present:")
+        print("Enemigos presentes:") 
         for enemy in location_data["enemies"]:
-            enemy_name = enemy.get('name', 'Unknown Enemy')
+            enemy_name = enemy.get('name', 'Enemigo Desconocido') 
             enemy_health = enemy.get('health', 'N/A')
-            print(f"- {enemy_name} (Health: {enemy_health})")
+            print(f"- {enemy_name} (Salud: {enemy_health})")
 
     if location_data.get("items"):
-        print("Items here: " + ", ".join(location_data["items"]))
+        display_items = [ITEM_DISPLAY_NAMES.get(item_key, item_key) for item_key in location_data["items"]]
+        print("Objetos aquí: " + ", ".join(display_items)) 
     else:
-        print("You see no items here.")
+        print("No ves objetos aquí.") 
 
     available_exits = ", ".join(location_data["exits"].keys())
     if available_exits:
-        print(f"Exits: {available_exits}")
+        print(f"Salidas: {available_exits}") 
     else:
-        print("There are no obvious exits.")
+        print("No hay salidas obvias.") 
 
-    # Placeholder for looking at specific details
-    if len(args) > 0 and args[0] == "at":
+    if len(args) > 0 and args[0] == "at": 
         if len(args) > 1:
-            detail_name = args[1].lower() # e.g. "elias" or "stairs"
-            if "details" in location_data and detail_name in location_data["details"]:
-                print(location_data["details"][detail_name])
-            # Looking AT an NPC
-            elif "npcs" in location_data and detail_name in location_data["npcs"]:
-                npc_data_val = location_data["npcs"][detail_name]
-                if isinstance(npc_data_val, dict):
-                    npc_name_display = npc_data_val.get("name", detail_name.capitalize())
-                    desc = npc_data_val.get("description", f"You see {npc_name_display}.")
-                    
-                    quest_hint = ""
-                    npc_quest_id = npc_data_val.get("quest_id")
-                    if npc_quest_id: # Check if NPC is related to any quest
-                        quest_status = player_quests.get(npc_quest_id, "unavailable")
-                        if quest_status == "inactive":
-                            quest_hint = f" They seem to want to discuss something. (Try 'talk to {detail_name}')"
-                        elif quest_status == "active":
-                            quest_hint = f" You have an ongoing task for them."
-                        elif quest_status == "completed":
-                            quest_hint = f" You've already helped them."
-                    print(desc + quest_hint)
-                else: # Old format
-                    print(npc_data_val) # Show original string desc
-            elif "items" in location_data and detail_name in location_data["items"]:
-                 print(f"It's a {detail_name}.") 
-            else:
-                print(f"You don't see any specific details about '{detail_name}' here.")
+            detail_name_input = " ".join(args[1:]).lower() 
+
+            found_detail = False
+            if "details" in location_data and detail_name_input in location_data["details"]:
+                print(location_data["details"][detail_name_input])
+                found_detail = True
+            
+            if not found_detail and "npcs" in location_data:
+                for npc_id, npc_data_val in location_data["npcs"].items():
+                    if isinstance(npc_data_val, dict) and \
+                       (detail_name_input == npc_id.lower() or detail_name_input == npc_data_val.get("name","").lower()):
+                        npc_name_display = npc_data_val.get("name", detail_name_input.capitalize())
+                        desc = npc_data_val.get("description", f"Ves a {npc_name_display}.")
+                        quest_hint = ""
+                        npc_quest_id = npc_data_val.get("quest_id")
+                        if npc_quest_id: 
+                            quest_status_obj = player_quests.get(npc_quest_id)
+                            actual_status = ""
+                            if isinstance(quest_status_obj, dict): actual_status = quest_status_obj.get("status")
+                            else: actual_status = quest_status_obj
+
+                            if actual_status == "inactive":
+                                quest_hint = f" Parece querer discutir algo. (Intenta 'talk to {npc_id}')" 
+                            elif actual_status == "active":
+                                quest_hint = f" Tienes una tarea pendiente para él/ella."
+                            elif actual_status == "completed":
+                                quest_hint = f" Ya le has ayudado con su tarea."
+                        print(desc + quest_hint)
+                        found_detail = True
+                        break
+                if found_detail: return 
+            
+            if not found_detail and "items" in location_data: 
+                for item_key in location_data.get("items", []):
+                    if detail_name_input == item_key.lower() or \
+                       detail_name_input == ITEM_DISPLAY_NAMES.get(item_key, "").lower():
+                        print(f"Es un(a) {ITEM_DISPLAY_NAMES.get(item_key, item_key)}.")
+                        found_detail = True
+                        break
+                if found_detail: return 
+            
+            if not found_detail and "enemies" in location_data: 
+                for enemy_obj in location_data["enemies"]:
+                    if detail_name_input == enemy_obj["name"].lower(): 
+                        print(enemy_obj.get("description", f"Un {enemy_obj['name']} de aspecto amenazante."))
+                        found_detail = True
+                        break
+                if found_detail: return 
+            
+            if not found_detail: 
+                print(f"No ves ningún detalle específico sobre '{detail_name_input}' aquí.")
         else:
-            print("Look at what?")
+            print("¿Mirar qué?") 
 
 
 def handle_talk(args):
     """Handles the 'talk to [npc]' command."""
     global current_location
     global player_quests
-    global player_inventory # Needed for quest item checks & rewards
+    global player_inventory 
 
     if not args:
-        print("Talk to whom?")
+        print("¿Hablar con quién?") 
         return
 
-    npc_target_name_part = args[0].lower()
+    npc_target_name_input = " ".join(args).lower() 
     location_data = world.get(current_location)
 
     if not location_data.get("npcs"):
-        print("There's no one to talk to here.")
+        print("No hay nadie con quien hablar aquí.") 
         return
 
     found_npc_id = None
     npc_data_to_use = None 
 
     for current_npc_id, current_npc_data_val in location_data["npcs"].items():
-        if npc_target_name_part in current_npc_id.lower(): # e.g. "elias" in "elias"
-            if isinstance(current_npc_data_val, dict): # Make sure we're dealing with new NPC structure
+        if isinstance(current_npc_data_val, dict):
+            if npc_target_name_input == current_npc_id.lower() or \
+               npc_target_name_input == current_npc_data_val.get("name","").lower():
                 found_npc_id = current_npc_id
                 npc_data_to_use = current_npc_data_val
                 break
-            else: # Should not happen if all NPCs are converted
-                print(f"DEBUG: NPC {current_npc_id} is not in the new format.") 
-                return
+            elif npc_target_name_input in current_npc_data_val.get("name","").lower(): 
+                found_npc_id = current_npc_id
+                npc_data_to_use = current_npc_data_val
     
     if not npc_data_to_use:
-        print(f"You don't see anyone called '{npc_target_name_part}' here to talk to like that.")
+        print(f"No ves a nadie llamado '{npc_target_name_input}' aquí para hablar.")
         return
+
 
     npc_display_name = npc_data_to_use.get("name", found_npc_id.capitalize())
     dialogue = npc_data_to_use.get("dialogue", {})
     quest_id = npc_data_to_use.get("quest_id")
     
-    print(f"\nYou approach {npc_display_name}.")
+    print(f"\nTe acercas a {npc_display_name}.") 
 
-    if quest_id: # NPC is related to a quest
-        quest_status = player_quests.get(quest_id, "unavailable") 
+    if quest_id: 
+        quest_status_obj = player_quests.get(quest_id) 
+        current_quest_status_val = ""
+        if isinstance(quest_status_obj, dict):
+            current_quest_status_val = quest_status_obj.get("status", "unavailable")
+        else:
+            current_quest_status_val = quest_status_obj if quest_status_obj else "unavailable"
 
-        if quest_status == "inactive":
+
+        if current_quest_status_val == "inactive":
             offer_dialogue_key = None
-            # Generalized way to find offer dialogue key
             for key in dialogue:
-                if key.startswith("offer_") and quest_id in key : # e.g. "offer_main_comms_array_quest" or "offer_tunnel_clearing_quest"
-                     # Simplified: assume quest_id is part of the offer key or directly "offer_main_quest", "offer_side_quest"
-                    if quest_id == "main_comms_array" and key == "offer_main_quest": offer_dialogue_key = key; break
-                    if quest_id == "side_librarian_glasses" and key == "offer_side_quest": offer_dialogue_key = key; break
-                    if quest_id == "tunnel_clearing_quest" and key == "offer_tunnel_clearing_quest": offer_dialogue_key = key; break
+                if key.startswith("offer_"): offer_dialogue_key = key; break 
             
             if offer_dialogue_key:
                 print(f"{npc_display_name}: \"{dialogue[offer_dialogue_key]}\"")
-                accept_input = input(f"Help {npc_display_name}? (yes/no): ").strip().lower()
-                if accept_input == "yes" or accept_input == "y":
+                accept_input = input(f"¿Ayudar a {npc_display_name}? (si/no): ").strip().lower() 
+                if accept_input in ["yes", "y", "si", "sí"]: 
                     if quest_id == "tunnel_clearing_quest":
                         player_quests[quest_id] = {'status': 'active', 'humans_defeated': 0, 'humans_required': 2}
                     else:
                         player_quests[quest_id] = "active"
-                    print(f"{npc_display_name}: \"{dialogue.get('quest_accepted', 'Thank you! Your help is appreciated.')}\"")
+                    print(f"{npc_display_name}: \"{dialogue.get('quest_accepted', '¡Gracias! Se agradece tu ayuda.')}\"")
                 else:
-                    print(f"{npc_display_name}: \"{dialogue.get('quest_declined', 'Oh, alright then. Let me know if you change your mind.')}\"")
+                    print(f"{npc_display_name}: \"{dialogue.get('quest_declined', 'Oh, de acuerdo entonces. Avísame si cambias de opinión.')}\"")
             else: 
-                 print(f"{npc_display_name}: \"{dialogue.get('greeting', 'They look at you but say little.')}\"")
+                 print(f"{npc_display_name}: \"{dialogue.get('greeting', 'Te mira pero dice poco.')}\"")
         
-        elif quest_status == "active" or (isinstance(quest_status, dict) and quest_status.get('status') == "active"):
-            # Side quest: Librarian's Glasses
+        elif current_quest_status_val == "active":
             if quest_id == "side_librarian_glasses" and npc_data_to_use.get("quest_item_needed"):
-                item_needed = npc_data_to_use["quest_item_needed"]
-                if item_needed in player_inventory:
-                    print(f"{npc_display_name}: \"{dialogue.get('completion', 'You found it! Amazing!')}\"")
-                    player_inventory.remove(item_needed)
-                    print(f"(You hand over the {item_needed}.)")
-                    reward = npc_data_to_use.get("reward_item")
-                    if reward: player_inventory.append(reward); print(f"You received a {reward} as a reward!")
-                    player_quests[quest_id] = "completed"
+                item_needed_key = npc_data_to_use["quest_item_needed"] 
+                if item_needed_key in player_inventory:
+                    print(f"{npc_display_name}: \"{dialogue.get('completion', '¡Las encontraste! ¡Increíble!')}\"")
+                    player_inventory.remove(item_needed_key)
+                    print(f"(Le entregas el objeto: {ITEM_DISPLAY_NAMES.get(item_needed_key, item_needed_key)}.)") 
+                    reward_key = npc_data_to_use.get("reward_item")
+                    if reward_key: player_inventory.append(reward_key); print(f"Recibiste un {ITEM_DISPLAY_NAMES.get(reward_key, reward_key)} como recompensa.") 
+                    player_quests[quest_id] = "completed" 
                     quest_xp_reward = npc_data_to_use.get("xp_reward", 0)
                     if quest_xp_reward > 0: gain_xp(quest_xp_reward)
                 else:
-                    print(f"{npc_display_name}: \"{dialogue.get('quest_item_not_found', 'Still looking for it?')}\"")
+                    print(f"{npc_display_name}: \"{dialogue.get('quest_item_not_found', '¿Sigues buscándolas?')}\"")
             
-            # New Quest: Tunnel Clearing
             elif quest_id == "tunnel_clearing_quest":
-                current_quest_data = player_quests.get(quest_id, {}) # This will be the dict {'status': ..., 'humans_defeated': ...}
-                defeated = current_quest_data.get('humans_defeated', 0)
-                required = current_quest_data.get('humans_required', 2)
+                current_quest_data_dict = player_quests.get(quest_id, {}) 
+                defeated = current_quest_data_dict.get('humans_defeated', 0)
+                required = current_quest_data_dict.get('humans_required', 2)
                 
-                if defeated >= required: # Player has met kill condition
-                    print(f"{npc_display_name}: \"{dialogue.get('completion', 'Excellent work clearing them out!')}\"")
+                if defeated >= required: 
+                    print(f"{npc_display_name}: \"{dialogue.get('completion', '¡Excelente trabajo eliminándolos!')}\"")
                     
-                    reward_item_name = npc_data_to_use.get("reward_item")
-                    if reward_item_name: # Check if there is a reward item defined
-                        # No quantity handling needed now, just add the single item name
-                        player_inventory.append(reward_item_name)
-                        print(f"You received {reward_item_name}.")
+                    reward_item_key = npc_data_to_use.get("reward_item")
+                    if reward_item_key: 
+                        player_inventory.append(reward_item_key)
+                        print(f"Recibiste {ITEM_DISPLAY_NAMES.get(reward_item_key, reward_item_key)}.") 
                     
                     quest_xp = npc_data_to_use.get("xp_reward", 0)
                     if quest_xp > 0: gain_xp(quest_xp)
                     
-                    # Update quest status within its dictionary
-                    current_quest_data['status'] = "completed" 
-                    # No need to reassign player_quests[quest_id] if current_quest_data is a direct reference
-                else: # Player has not met kill condition yet
+                    current_quest_data_dict['status'] = "completed" 
+                else: 
                     remaining = required - defeated
-                    reminder_text = dialogue.get('quest_reminder_incomplete', "Still work to do.").format(remaining=remaining, defeated=defeated, required=required) # Ensure .format() is robust
+                    reminder_text = dialogue.get('quest_reminder_incomplete', "Aún queda trabajo por hacer.").format(remaining=remaining, defeated=defeated, required=required) 
                     print(f"{npc_display_name}: \"{reminder_text}\"")
 
-            # Main Quest Reminder
             elif quest_id == "main_comms_array":
-                 print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', 'How is it going?')}\"")
+                 print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', '¿Algún progreso en llegar a la Sala de Control?')}\"")
             else: 
-                print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', 'How is that task coming along?')}\"")
+                print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', '¿Cómo va esa tarea?')}\"")
         
-        elif quest_status == "completed" or (isinstance(quest_status, dict) and quest_status.get('status') == "completed"):
-            print(f"{npc_display_name}: \"{dialogue.get('quest_completed_already', 'Thanks again for your help!')}\"")
+        elif current_quest_status_val == "completed":
+            print(f"{npc_display_name}: \"{dialogue.get('quest_completed_already', '¡Gracias de nuevo por tu ayuda!')}\"")
         
-        else: # Should not happen if quests are initialized correctly
-            print(f"{npc_display_name}: \"{dialogue.get('default', 'Nothing more to say right now.')}\"")
-    else: # NPC has no quest_id
-        print(f"{npc_display_name}: \"{dialogue.get('greeting', dialogue.get('default', 'They nod at you.'))}\"")
+        else: 
+            print(f"{npc_display_name}: \"{dialogue.get('default', 'No hay nada más que decir por ahora.')}\"")
+    else: 
+        print(f"{npc_display_name}: \"{dialogue.get('greeting', dialogue.get('default', 'Te saluda con un asentimiento.'))}\"")
 
 
 def handle_go(args):
     """Handles the 'go' command."""
     global current_location
-    global player_quests # Needed for quest events on room entry
+    global player_quests 
     if not args:
-        print("Go where?")
+        print("¿Ir adónde?") 
         return
 
     direction = args[0].lower()
-    current_room_data = world.get(current_location) # Data of the room we are IN
+    current_room_data = world.get(current_location) 
 
     if current_room_data and direction in current_room_data["exits"]:
         next_location_id = current_room_data["exits"][direction]
         if next_location_id in world:
             current_location = next_location_id
-            print(f"\nYou go {direction}...") # Added newline for better spacing
+            print(f"\nVas hacia {direction}...") 
             
-            # --- Main Quest Completion Check ---
-            new_location_data = world.get(current_location) # Data for the new room player entered
+            new_location_data = world.get(current_location) 
             if new_location_data and new_location_data.get("on_enter_event") == "main_quest_control_room_entry":
                 if player_quests.get("main_comms_array") == "active":
-                    print("\n[QUEST COMPLETED] As you step into the Control Room, a panel on the main terminal flickers to life with a soft green glow. You've successfully activated the communication array panel!")
-                    print("Elias will be pleased to hear the station's core systems are responsive again.")
+                    print("\n[MISIÓN COMPLETADA] Al entrar en la Sala de Control, un panel en la terminal principal parpadea con una suave luz verde. ¡Has activado con éxito el panel de la antena de comunicaciones!")
+                    print("Elías se alegrará de saber que los sistemas centrales de la estación vuelven a responder.")
                     player_quests["main_comms_array"] = "completed"
-                    gain_xp(150) # Grant 150 XP for completing the main quest
-                    # To prevent re-triggering, we rely on the quest status check.
+                    gain_xp(150) 
             
-            handle_look([]) # Automatically look around after moving
+            handle_look([]) 
         else:
-            print(f"Error: The path {direction} leads to an unknown place.")
+            print(f"Error: El camino {direction} lleva a un lugar desconocido.") 
     else:
-        print(f"You can't go {direction}.")
+        print(f"No puedes ir hacia {direction}.") 
 
 
 def handle_attack(args):
     """Handles the 'attack' command."""
     global current_location
     global player_stats
-    # No need to pass 'world' as global, it's already accessible
 
     location_data = world.get(current_location)
     if not location_data or not location_data.get("enemies"):
-        print("There's nothing to attack here.")
+        print("No hay nada que atacar aquí.") 
         return
 
     if not args:
-        print("Attack what? (e.g., 'attack rat')")
+        if location_data.get("enemies"):
+            first_enemy_name = location_data["enemies"][0].get("name", "enemigo")
+            example_target = first_enemy_name.split()[0] if first_enemy_name else "enemigo"
+            print(f"¿Atacar a qué? (ej: 'attack {example_target}')")
+        else:
+            print("¿Atacar a qué?")
         return
 
-    target_name_part = args[0].lower()
+    target_name_input = " ".join(args).lower() 
     target_enemy = None
     enemy_index = -1
 
-    # Find the enemy
-    # Allow targeting by full name or parts of it, case insensitively
-    # Also, if multiple enemies of same type, target first one found.
-    # This could be improved to target specific instances if names are not unique (e.g. "rat 1", "rat 2")
     for i, enemy_data in enumerate(location_data["enemies"]):
-        if target_name_part in enemy_data["name"].lower():
+        if target_name_input in enemy_data["name"].lower(): 
             target_enemy = enemy_data
             enemy_index = i
             break
     
     if not target_enemy:
-        print(f"You don't see any '{target_name_part}' to attack here.")
+        print(f"No ves ningún '{target_name_input}' para atacar aquí.") 
         return
 
-    # --- Combat Round ---
-    enemy_name_display = target_enemy.get("name", "Mysterious Foe")
-    print(f"\n--- Combat with {enemy_name_display} ---")
+    enemy_name_display = target_enemy.get("name", "Enemigo Misterioso") 
+    print(f"\n--- Combate con {enemy_name_display} ---")
 
-    # Player's attack
     player_damage = player_stats["strength"] 
     target_enemy["health"] -= player_damage
-    print(f"You strike the {enemy_name_display} for {player_damage} damage.")
+    print(f"Golpeas a {enemy_name_display} y le haces {player_damage} de daño.") 
 
     if target_enemy["health"] <= 0:
-        print(f"You defeated the {enemy_name_display}!")
+        print(f"¡Has derrotado a {enemy_name_display}!") 
         
-        # Quest Kill Tracking
-        if "feral human" in enemy_name_display.lower(): # Check if it's any type of Feral Human
+        if "humano salvaje" in enemy_name_display.lower(): 
             tunnel_quest = player_quests.get("tunnel_clearing_quest")
             if isinstance(tunnel_quest, dict) and tunnel_quest.get("status") == "active":
                 tunnel_quest["humans_defeated"] = tunnel_quest.get("humans_defeated", 0) + 1
-                print(f"[Quest Update] Feral Humans defeated: {tunnel_quest['humans_defeated']}/{tunnel_quest['humans_required']}")
+                print(f"[Actualización Misión] Humanos Salvajes derrotados: {tunnel_quest['humans_defeated']}/{tunnel_quest['humans_required']}")
 
-        # Handle Loot Drop
         possible_loot = target_enemy.get("loot")
         if possible_loot:
-            dropped_item = None
+            dropped_item_key = None
             if isinstance(possible_loot, list) and possible_loot: 
-                dropped_item = random.choice(possible_loot)
+                dropped_item_key = random.choice(possible_loot)
             elif isinstance(possible_loot, str): 
-                dropped_item = possible_loot
+                dropped_item_key = possible_loot
             
-            if dropped_item:
+            if dropped_item_key:
                 if "items" not in location_data: 
                     location_data["items"] = []
-                location_data["items"].append(dropped_item)
-                print(f"The {enemy_name_display} dropped a {dropped_item}.")
+                location_data["items"].append(dropped_item_key) 
+                dropped_item_display = ITEM_DISPLAY_NAMES.get(dropped_item_key, dropped_item_key)
+                print(f"{enemy_name_display} dejó caer un(a) {dropped_item_display}.") 
         
         location_data["enemies"].pop(enemy_index) 
         
@@ -740,21 +786,17 @@ def handle_attack(args):
             
         return 
 
-    # Enemy's attack (if still alive)
-    # Basic hit chance (optional, can be expanded)
-    # For now, enemy always hits if player didn't defeat it.
     enemy_damage = target_enemy["attack_power"]
     player_stats["current_health"] -= enemy_damage
-    print(f"The {target_enemy['name']} retaliates, hitting you for {enemy_damage} damage.")
+    print(f"{enemy_name_display} contraataca, haciéndote {enemy_damage} de daño.") 
 
     if player_stats["current_health"] <= 0:
-        player_stats["current_health"] = 0 # Prevent negative health display
-        print(f"Your health: {player_stats['current_health']}/{player_stats['max_health']}.")
-        print("\nYou have succumbed to your wounds. Your adventure ends here.")
-        print("Game Over.")
-        # The main game loop will catch the zero health and exit.
+        player_stats["current_health"] = 0 
+        print(f"Tu salud es {player_stats['current_health']}/{player_stats['max_health']}.")
+        print("\nHas sucumbido a tus heridas. Tu aventura termina aquí.") 
+        print("Fin del Juego.") 
     else:
-        print(f"Your health: {player_stats['current_health']}/{player_stats['max_health']}.")
+        print(f"Tu salud es {player_stats['current_health']}/{player_stats['max_health']}.")
     print("--------------------")
 
 
@@ -763,119 +805,40 @@ def handle_take(args):
     global current_location
     global player_inventory
     if not args:
-        print("Take what?")
+        print("¿Tomar qué?") 
         return
 
-    item_name = args[0].lower()
+    item_name_input = " ".join(args).lower() 
     location_data = world.get(current_location)
-
-    if location_data and item_name in location_data["items"]:
-        player_inventory.append(item_name)
-        location_data["items"].remove(item_name)
-        print(f"You take the {item_name}.")
+    
+    found_item_key = None
+    if location_data and location_data.get("items"):
+        for item_key in location_data["items"]:
+            if item_name_input == item_key.lower() or \
+               item_name_input == ITEM_DISPLAY_NAMES.get(item_key, "").lower():
+                found_item_key = item_key
+                break
+    
+    if found_item_key:
+        player_inventory.append(found_item_key) 
+        location_data["items"].remove(found_item_key)
+        print(f"Tomas el/la {ITEM_DISPLAY_NAMES.get(found_item_key, found_item_key)}.") 
     else:
-        print(f"You don't see a {item_name} here.")
+        print(f"No ves un(a) {item_name_input} aquí.") 
 
 def handle_inventory(args):
     """Handles the 'inventory' command."""
     global player_inventory
     if player_inventory:
-        print("You are carrying: " + ", ".join(player_inventory))
+        display_inventory = [ITEM_DISPLAY_NAMES.get(item_key, item_key) for item_key in player_inventory]
+        print("Llevas contigo: " + ", ".join(display_inventory)) 
     else:
-        print("Your inventory is empty.")
+        print("Tu inventario está vacío.") 
 
 def handle_quit(args):
     """Handles the 'quit' command."""
-    print("Thanks for playing!")
+    print("¡Gracias por jugar!") 
     exit()
 
 # --- Command Parser ---
-commands = {
-    "look": handle_look,
-    "go": handle_go,
-    "take": handle_take,
-    "inventory": handle_inventory,
-    "stats": handle_stats,
-    "attack": handle_attack,
-    "fight": handle_attack, # Alias for attack
-    "quests": handle_quests,
-    "journal": handle_quests, # Alias for quests
-    "talk": handle_talk,
-    "help": handle_help,
-    "use": handle_use_item,
-    "save": handle_save_game, # New command
-    "load": handle_load_game, # New command
-    "quit": handle_quit,
-    "exit": handle_quit # Alias for quit
-}
-
-# --- Main Game Loop ---
-def game_loop():
-    """Main loop for the game."""
-    global player_stats # Ensure we can modify the global player_stats
-
-    print("Welcome to the Metro Adventure Game!")
-    
-    # Character Creation
-    player_name = input("Enter your character's name (default: Survivor): ").strip()
-    if player_name:
-        player_stats["name"] = player_name
-    
-    # Initialize stats 
-    player_stats["name"] = player_name 
-    player_stats["level"] = 1
-    player_stats["xp"] = 0
-    player_stats["xp_to_next_level"] = 100 
-    player_stats["max_health"] = 20
-    player_stats["current_health"] = player_stats["max_health"] 
-    player_stats["strength"] = 5
-    player_stats["agility"] = 3
-    player_stats["first_aid_skill"] = 1 # Initialize first aid skill
-
-    # Initialize Quests
-    global player_quests
-    player_quests = {
-        "main_comms_array": "inactive", 
-        "side_librarian_glasses": "inactive",
-        "tunnel_clearing_quest": "inactive" # Initialize new quest
-    }
-    
-    print(f"\nWelcome, {player_stats['name']}! Your adventure begins.")
-    handle_stats([]) # Show initial stats
-    # Initial hint for main quest
-    print("\nEngineer Elias, in the station entrance, looks like he has something important to tell you. (Try 'talk to elias')") 
-    
-    handle_look([]) # Initial look around
-
-    while True:
-        # Check for game over condition at the start of each loop iteration
-        if player_stats["current_health"] <= 0:
-            # This check ensures game ends if health drops to 0 outside of direct combat loop
-            # (e.g. future traps or poison)
-            # Message is printed by handle_attack or other future damage sources
-            break # Exit the main game loop
-
-        try:
-            # Update prompt to show current health
-            prompt = f"\n({player_stats['current_health']}/{player_stats['max_health']} HP) > "
-            player_input = input(prompt).strip().lower()
-            if not player_input:
-                continue
-
-            parts = player_input.split()
-            command = parts[0]
-            args = parts[1:]
-
-            if command in commands:
-                commands[command](args)
-            else:
-                print("Unknown command. Type 'help' for a list of commands.") # Updated help hint
-        except EOFError:
-            print("\nQuitting game (EOF detected).")
-            break
-        except KeyboardInterrupt:
-            print("\nQuitting game (interrupt signal).")
-            break
-
-if __name__ == "__main__":
-    game_loop()
+>>>>>>> REPLACE
