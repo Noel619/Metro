@@ -1,4 +1,7 @@
 # Basic structure for a text-based RPG
+import random 
+import json # For saving and loading
+import copy # For deepcopying game state
 
 # --- Game World ---
 world = {
@@ -53,22 +56,47 @@ world = {
         }
     },
     "flooded_tunnel": {
-        "description": "Water pools ankle-deep in this tunnel, and the air is damp and cold. Strange fungi glow faintly on the walls. A narrow, slippery walkway skirts the edge of the deeper water. You hear a faint skittering sound.",
+        "description": "Water pools ankle-deep in this tunnel, and the air is damp and cold. Strange fungi glow faintly on the walls. A narrow, slippery walkway skirts the edge of the deeper water. You hear faint skittering sounds and sometimes catch a glimpse of something moving in the shadows.",
         "exits": {"north": "platform", "south": "engine_room"},
         "items": ["glowing_fungus", "scrap_metal"],
         "enemies": [
-            {"name": "Giant Rat", "health": 8, "attack_power": 3, "agility": 2, "loot": "rat_tail"}
+            {"name": "Giant Rat", "description": "A large, aggressive rodent, common in these tunnels.", "health": 8, "attack_power": 3, "agility": 2, "loot": ["rat_tail"], "xp_value": 25}, # Made loot a list, adjusted XP
+            {"name": "Lurker", "description": "A shadowy figure that seems to blend with the dim light. Its eyes glint, and it moves with an unsettling speed, making it hard to get a clear shot.", "health": 35, "attack_power": 6, "loot": ["ammo_scraps", "mutant_claws"], "xp_value": 75}
         ]
     },
     "abandoned_depot": {
-        "description": "An old train depot, filled with rusting hulks of metro cars. Cobwebs hang thick as curtains, and the silence is unnerving. A faint scurrying sound comes from the shadows.",
+        "description": "An old train depot, filled with rusting hulks of metro cars. Cobwebs hang thick as curtains, and the silence is unnerving. A faint scurrying sound and the occasional clatter of metal echoes from deeper within. It feels like you're being watched by desperate eyes.",
         "exits": {"south": "market_station"},
-        "items": ["crowbar", "old_map_fragment", "antique_glasses"] # Quest item for Librarian Agnes
+        "items": ["crowbar", "old_map_fragment", "antique_glasses"], 
+        "enemies": [
+            {"name": "Feral Human Scavenger", "description": "A gaunt Feral Human, darting between shadows, clutching a rusty shiv.", "health": 18, "attack_power": 7, "loot": ["scrap_metal", "bandage"], "xp_value": 45},
+            {"name": "Feral Human Bruiser", "description": "A larger, more imposing Feral Human, wielding a heavy pipe with menace.", "health": 25, "attack_power": 9, "loot": ["scrap_metal", "bandage", "moldy_bread"], "xp_value": 60}
+        ]
     },
     "security_checkpoint": {
-        "description": "A deserted security checkpoint. Barricades are pushed aside, and a guard booth stands empty, its window cracked. Warning posters about mutants are peeling from the walls.",
+        "description": "A deserted security checkpoint. Barricades are pushed aside, and a guard booth stands empty, its window cracked. Warning posters about mutants are peeling from the walls. Guard Captain Dimitri stands watch, looking grim.",
         "exits": {"west": "station_entrance", "east": "makeshift_library"},
-        "items": ["ammo_clip", "first_aid_kit"]
+        "items": ["ammo_clip", "first_aid_kit"],
+        "npcs": {
+            "dimitri": {
+                "name": "Guard Captain Dimitri",
+                "description": "Dimitri is a stern-faced man in worn guard armor. He has the weary look of someone who's seen too much.",
+                "dialogue": {
+                    "greeting": "Halt! State your business. This checkpoint is on high alert.",
+                    "offer_tunnel_clearing_quest": "The old depot nearby has become a nest for Feral Humans. They're getting bolder, threatening our perimeter. We need someone to go in there and... discourage them. Permanently. Clear out two of them, and I can make it worth your while. Interested?",
+                    "quest_accepted": "Good. Watch yourself. They're fast and desperate. Two less of them will make this area safer for everyone.",
+                    "quest_reminder_incomplete": "The Feral Human problem in the depot isn't resolved yet. I need you to take down {remaining} more of them.",
+                    # "quest_reminder_complete" removed as it's confusing; completion is direct.
+                    "completion": "You've thinned out those Ferals? Good work. Not many would take that risk. Here's your payment - a cache of military-grade rounds. And you've earned this.", # Changed reward description
+                    "quest_completed_already": "Thanks again for clearing out that nest. Things have been quieter.",
+                    "default": "Stay vigilant. The tunnels are never truly safe."
+                },
+                "quest_id": "tunnel_clearing_quest",
+                "reward_item": "cache_of_military_rounds", # Changed to a single item string
+                # "reward_item_qty" removed, as it's now a single item.
+                "xp_reward": 100
+            }
+        }
     },
     "engine_room": {
         "description": "The air hums with the sound of ancient generators. The room is hot and filled with the smell of oil and ozone. Catwalks crisscross above massive, chugging machinery. A reinforced door is set into the far wall, marked 'CONTROL ROOM'.",
@@ -93,8 +121,9 @@ world = {
                     "quest_completed_already": "Thank you again for finding my glasses, dear. That book I gave you is quite special."
                 },
                 "quest_id": "side_librarian_glasses",
-                "quest_item_needed": "antique_glasses", # Item player needs to have
-                "reward_item": "valuable_book"        # Item player receives
+                "quest_item_needed": "antique_glasses", 
+                "reward_item": "valuable_book",
+                "xp_reward": 75  # XP reward for completing this side quest
             }
         },
         "details": {
@@ -121,11 +150,16 @@ player_stats = {
     "max_health": 20,
     "current_health": 20,
     "strength": 5, 
-    "agility": 3   
+    "agility": 3,
+    "level": 1,
+    "xp": 0,
+    "xp_to_next_level": 100,
+    "first_aid_skill": 1 # Base first aid skill
 }
 player_quests = {
-    "main_comms_array": "inactive", # Was main_polis_message
-    "side_librarian_glasses": "inactive"
+    "main_comms_array": "inactive", 
+    "side_librarian_glasses": "inactive",
+    "tunnel_clearing_quest": "inactive" # Added new quest
 }
 current_location = "station_entrance"
 
@@ -139,10 +173,68 @@ current_location = "station_entrance"
 def handle_stats(args):
     """Handles the 'stats' command."""
     print(f"\n--- {player_stats['name']}'s Stats ---")
+    print(f"Level: {player_stats['level']}")
+    print(f"XP: {player_stats['xp']}/{player_stats['xp_to_next_level']}")
     print(f"Health: {player_stats['current_health']}/{player_stats['max_health']}")
     print(f"Strength: {player_stats['strength']}")
     print(f"Agility: {player_stats['agility']}")
+    print(f"First Aid Skill: {player_stats['first_aid_skill']}")
     print("--------------------")
+
+# --- XP and Leveling System ---
+def handle_level_up_stat_increase():
+    """Allows player to choose a stat to increase upon leveling up."""
+    global player_stats
+    print("\nCongratulations! You feel more experienced. Choose a stat to improve:")
+    print("  1. Vigor (+5 Max Health, heal +5 HP or to full)")
+    print("  2. Prowess (+1 Strength)")
+    print("  3. Finesse (+1 Agility)")
+
+    while True:
+        choice = input("Enter your choice (1-3): ").strip()
+        if choice == "1":
+            player_stats["max_health"] += 5
+            # Heal player by the amount gained, or to full, whichever is less on top of current.
+            # More simply, just set current_health to max_health after increase.
+            player_stats["current_health"] = player_stats["max_health"] 
+            print(f"Your maximum health increased to {player_stats['max_health']}! You feel more resilient and are fully healed.")
+            break
+        elif choice == "2":
+            player_stats["strength"] += 1
+            print(f"Your strength increased to {player_stats['strength']}! You feel more powerful.")
+            break
+        elif choice == "3":
+            player_stats["agility"] += 1
+            print(f"Your agility increased to {player_stats['agility']}! You feel quicker.")
+            break
+        else:
+            print("Invalid choice. Please enter a number between 1 and 3.")
+    handle_stats([]) # Display updated stats
+
+def check_level_up():
+    """Checks if the player has enough XP to level up and handles the process."""
+    global player_stats
+    if player_stats["xp"] >= player_stats["xp_to_next_level"]:
+        player_stats["level"] += 1
+        player_stats["xp"] -= player_stats["xp_to_next_level"] # Carry over remaining XP
+        player_stats["xp_to_next_level"] = player_stats["level"] * 100 # Example: Next level needs Level * 100 XP
+        
+        print(f"\n*** LEVEL UP! You reached Level {player_stats['level']}! ***")
+        handle_level_up_stat_increase()
+        # In case of multiple level ups from a large XP gain, recursively check
+        # This is a simple way; a loop in gain_xp would be more robust for massive XP gains.
+        check_level_up() 
+
+def gain_xp(amount):
+    """Grants XP to the player and triggers a level-up check."""
+    global player_stats
+    if amount <= 0:
+        return
+    
+    print(f"\nYou gained {amount} XP.")
+    player_stats["xp"] += amount
+    check_level_up()
+# --- End XP and Leveling System ---
 
 def handle_help(args):
     """Handles the 'help' command."""
@@ -157,9 +249,127 @@ def handle_help(args):
     print("  fight [target]    - Alias for 'attack'.")
     print("  talk to [npc]     - Speak with an NPC in your current location (e.g., 'talk to elias').")
     print("  quests / journal  - View the status of your current quests.")
+    print("  use [item]        - Use an item from your inventory (e.g., 'use first_aid_kit').")
+    print("  save              - Save your current game progress.")
+    print("  load              - Load your previously saved game.")
     print("  help              - Show this list of commands.")
     print("  quit / exit       - Exit the game.")
     print("--------------------")
+
+# --- Save/Load Game Functionality ---
+SAVE_FILE_NAME = "metro_savegame.json"
+
+def handle_save_game(args):
+    """Saves the current game state to a file."""
+    global player_stats, player_inventory, current_location, player_quests, world
+    
+    game_state = {
+        "player_stats": copy.deepcopy(player_stats),
+        "player_inventory": copy.deepcopy(player_inventory),
+        "current_location": current_location, # String, so direct copy is fine
+        "player_quests": copy.deepcopy(player_quests),
+        "world": copy.deepcopy(world) # Save the entire world state
+    }
+    
+    try:
+        with open(SAVE_FILE_NAME, 'w') as f:
+            json.dump(game_state, f, indent=4) # indent for readability if opened manually
+        print("Game saved.")
+    except IOError:
+        print("Error: Could not save game.")
+
+def handle_load_game(args):
+    """Loads the game state from a file."""
+    global player_stats, player_inventory, current_location, player_quests, world
+    
+    try:
+        with open(SAVE_FILE_NAME, 'r') as f:
+            game_state = json.load(f)
+            
+            # Restore game state
+            player_stats = game_state["player_stats"]
+            player_inventory = game_state["player_inventory"]
+            current_location = game_state["current_location"]
+            player_quests = game_state["player_quests"]
+            world = game_state["world"] # Crucial: restore the modified world
+            
+            print("\nGame loaded.")
+            handle_look([]) # Show current location after loading
+    except FileNotFoundError:
+        print("No saved game found.")
+    except IOError:
+        print("Error: Could not load game.")
+    except json.JSONDecodeError:
+        print("Error: Save file is corrupted.")
+
+
+# --- Item Usage Handler ---
+def handle_use_item(args):
+    """Handles the 'use [item]' command."""
+    global player_stats
+    global player_inventory
+
+    if not args:
+        print("Use what? (e.g., 'use first_aid_kit')")
+        return
+
+    item_to_use = "_".join(args).lower() # Allow for multi-word items like "first_aid_kit"
+
+    if item_to_use not in player_inventory:
+        print(f"You don't have a {item_to_use} in your inventory.")
+        return
+
+    if item_to_use == "first_aid_kit":
+        if player_stats["current_health"] >= player_stats["max_health"]:
+            print("You are already at full health. No need to use a first_aid_kit.")
+            return
+
+        base_heal = 15
+        skill_bonus = player_stats.get("first_aid_skill", 1) * 5 # Default to skill 1 if somehow not set
+        total_heal = base_heal + skill_bonus
+        
+        healed_amount = 0
+        if player_stats["current_health"] + total_heal > player_stats["max_health"]:
+            healed_amount = player_stats["max_health"] - player_stats["current_health"]
+            player_stats["current_health"] = player_stats["max_health"]
+        else:
+            healed_amount = total_heal
+            player_stats["current_health"] += total_heal
+            
+        player_inventory.remove("first_aid_kit") # Remove one kit
+        print(f"You used a first_aid_kit and healed for {healed_amount} HP.")
+        print(f"Your current health is now {player_stats['current_health']}/{player_stats['max_health']}.")
+    
+    
+    elif item_to_use == "bandage":
+        if player_stats["current_health"] >= player_stats["max_health"]:
+            print("You are already at full health. No need to use a bandage.")
+            return
+        
+        heal_amount = 10 # Bandages heal a fixed amount
+        
+        actual_healed = 0
+        if player_stats["current_health"] + heal_amount > player_stats["max_health"]:
+            actual_healed = player_stats["max_health"] - player_stats["current_health"]
+            player_stats["current_health"] = player_stats["max_health"]
+        else:
+            actual_healed = heal_amount
+            player_stats["current_health"] += heal_amount
+            
+        player_inventory.remove("bandage")
+        print(f"You apply a bandage and heal for {actual_healed} HP.")
+        print(f"Your current health is now {player_stats['current_health']}/{player_stats['max_health']}.")
+
+    # Example for ration_pack if it becomes usable
+    # elif item_to_use == "ration_pack":
+    #     print("You eat the ration pack. It's not great, but it's filling.")
+    #     # Potentially restore a small amount of health or hunger if that was a mechanic
+    #     player_inventory.remove("ration_pack")
+    #     # gain_xp(5) # Small XP for using an item? (Optional)
+
+    else:
+        print(f"You can't use the {item_to_use} in that way (or it's not usable).")
+
 
 def handle_quests(args):
     """Handles the 'quests' or 'journal' command."""
@@ -183,6 +393,22 @@ def handle_quests(args):
     elif player_quests.get("side_librarian_glasses") == "completed":
         print("- (Completed) Lost & Found: You returned the antique_glasses to Librarian Agnes and received a valuable_book.")
         completed_quests_found = True
+
+    # Tunnel Clearing Quest
+    tunnel_quest_data = player_quests.get("tunnel_clearing_quest")
+    if isinstance(tunnel_quest_data, dict): # Quest is active or completed and has data
+        defeated = tunnel_quest_data.get('humans_defeated', 0)
+        required = tunnel_quest_data.get('humans_required', 2)
+        if tunnel_quest_data.get('status') == "active":
+            print(f"- (Active) Tunnel Clearing: Defeat Feral Humans in the Abandoned Depot for Captain Dimitri. ({defeated}/{required} defeated)")
+            active_quests_found = True
+        elif tunnel_quest_data.get('status') == "completed":
+            print(f"- (Completed) Tunnel Clearing: You cleared out the Feral Humans for Captain Dimitri.")
+            completed_quests_found = True
+    elif tunnel_quest_data == "inactive": # Standard inactive string state
+        # Not usually shown unless no other quests are active/completed
+        pass
+
 
     if not active_quests_found and not completed_quests_found:
         # Check if there are any quests at all, even if all are inactive
@@ -217,12 +443,13 @@ def handle_look(args):
                 quest_hint = ""
                 npc_quest_id = npc_data_val.get("quest_id")
                 # Only show "wants to talk" hint if there's an actual quest to offer
-                if npc_quest_id and player_quests.get(npc_quest_id) == "inactive" and \
-                   (npc_data_val.get("dialogue", {}).get("offer_main_quest") or \
-                    npc_data_val.get("dialogue", {}).get("offer_side_quest")):
+                dialogues = npc_data_val.get("dialogue", {})
+                has_offer_dialogue = any(key.startswith("offer_") for key in dialogues)
+
+                if npc_quest_id and player_quests.get(npc_quest_id) == "inactive" and has_offer_dialogue:
                     quest_hint = f" {npc_name_display} looks like they might want to talk. (Try 'talk to {npc_id}')"
                 print(base_desc + quest_hint)
-            else: # Old format NPC description (just a string for simple NPCs like Vendor initially was)
+            else: # Old format NPC description (just a string)
                 print(f"You see {npc_id.capitalize()}. {npc_data_val}") # Should be less common now
 
     if location_data.get("enemies"):
@@ -322,23 +549,30 @@ def handle_talk(args):
 
         if quest_status == "inactive":
             offer_dialogue_key = None
-            if quest_id == "main_comms_array" and "offer_main_quest" in dialogue:
-                offer_dialogue_key = "offer_main_quest"
-            elif quest_id == "side_librarian_glasses" and "offer_side_quest" in dialogue:
-                offer_dialogue_key = "offer_side_quest"
+            # Generalized way to find offer dialogue key
+            for key in dialogue:
+                if key.startswith("offer_") and quest_id in key : # e.g. "offer_main_comms_array_quest" or "offer_tunnel_clearing_quest"
+                     # Simplified: assume quest_id is part of the offer key or directly "offer_main_quest", "offer_side_quest"
+                    if quest_id == "main_comms_array" and key == "offer_main_quest": offer_dialogue_key = key; break
+                    if quest_id == "side_librarian_glasses" and key == "offer_side_quest": offer_dialogue_key = key; break
+                    if quest_id == "tunnel_clearing_quest" and key == "offer_tunnel_clearing_quest": offer_dialogue_key = key; break
             
             if offer_dialogue_key:
                 print(f"{npc_display_name}: \"{dialogue[offer_dialogue_key]}\"")
                 accept_input = input(f"Help {npc_display_name}? (yes/no): ").strip().lower()
                 if accept_input == "yes" or accept_input == "y":
-                    player_quests[quest_id] = "active"
+                    if quest_id == "tunnel_clearing_quest":
+                        player_quests[quest_id] = {'status': 'active', 'humans_defeated': 0, 'humans_required': 2}
+                    else:
+                        player_quests[quest_id] = "active"
                     print(f"{npc_display_name}: \"{dialogue.get('quest_accepted', 'Thank you! Your help is appreciated.')}\"")
                 else:
                     print(f"{npc_display_name}: \"{dialogue.get('quest_declined', 'Oh, alright then. Let me know if you change your mind.')}\"")
-            else: # NPC has a quest_id but no specific offer dialogue for inactive state
+            else: 
                  print(f"{npc_display_name}: \"{dialogue.get('greeting', 'They look at you but say little.')}\"")
         
-        elif quest_status == "active":
+        elif quest_status == "active" or (isinstance(quest_status, dict) and quest_status.get('status') == "active"):
+            # Side quest: Librarian's Glasses
             if quest_id == "side_librarian_glasses" and npc_data_to_use.get("quest_item_needed"):
                 item_needed = npc_data_to_use["quest_item_needed"]
                 if item_needed in player_inventory:
@@ -346,18 +580,46 @@ def handle_talk(args):
                     player_inventory.remove(item_needed)
                     print(f"(You hand over the {item_needed}.)")
                     reward = npc_data_to_use.get("reward_item")
-                    if reward:
-                        player_inventory.append(reward)
-                        print(f"You received a {reward} as a reward!")
+                    if reward: player_inventory.append(reward); print(f"You received a {reward} as a reward!")
                     player_quests[quest_id] = "completed"
+                    quest_xp_reward = npc_data_to_use.get("xp_reward", 0)
+                    if quest_xp_reward > 0: gain_xp(quest_xp_reward)
                 else:
-                    print(f"{npc_display_name}: \"{dialogue.get('quest_item_not_found', 'Still looking for it? I believe it was in the Abandoned Depot.')}\"")
+                    print(f"{npc_display_name}: \"{dialogue.get('quest_item_not_found', 'Still looking for it?')}\"")
+            
+            # New Quest: Tunnel Clearing
+            elif quest_id == "tunnel_clearing_quest":
+                current_quest_data = player_quests.get(quest_id, {}) # This will be the dict {'status': ..., 'humans_defeated': ...}
+                defeated = current_quest_data.get('humans_defeated', 0)
+                required = current_quest_data.get('humans_required', 2)
+                
+                if defeated >= required: # Player has met kill condition
+                    print(f"{npc_display_name}: \"{dialogue.get('completion', 'Excellent work clearing them out!')}\"")
+                    
+                    reward_item_name = npc_data_to_use.get("reward_item")
+                    if reward_item_name: # Check if there is a reward item defined
+                        # No quantity handling needed now, just add the single item name
+                        player_inventory.append(reward_item_name)
+                        print(f"You received {reward_item_name}.")
+                    
+                    quest_xp = npc_data_to_use.get("xp_reward", 0)
+                    if quest_xp > 0: gain_xp(quest_xp)
+                    
+                    # Update quest status within its dictionary
+                    current_quest_data['status'] = "completed" 
+                    # No need to reassign player_quests[quest_id] if current_quest_data is a direct reference
+                else: # Player has not met kill condition yet
+                    remaining = required - defeated
+                    reminder_text = dialogue.get('quest_reminder_incomplete', "Still work to do.").format(remaining=remaining, defeated=defeated, required=required) # Ensure .format() is robust
+                    print(f"{npc_display_name}: \"{reminder_text}\"")
+
+            # Main Quest Reminder
             elif quest_id == "main_comms_array":
-                 print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', 'Any progress on reaching the Control Room?')}\"")
+                 print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', 'How is it going?')}\"")
             else: 
                 print(f"{npc_display_name}: \"{dialogue.get('quest_reminder', 'How is that task coming along?')}\"")
         
-        elif quest_status == "completed":
+        elif quest_status == "completed" or (isinstance(quest_status, dict) and quest_status.get('status') == "completed"):
             print(f"{npc_display_name}: \"{dialogue.get('quest_completed_already', 'Thanks again for your help!')}\"")
         
         else: # Should not happen if quests are initialized correctly
@@ -390,6 +652,7 @@ def handle_go(args):
                     print("\n[QUEST COMPLETED] As you step into the Control Room, a panel on the main terminal flickers to life with a soft green glow. You've successfully activated the communication array panel!")
                     print("Elias will be pleased to hear the station's core systems are responsive again.")
                     player_quests["main_comms_array"] = "completed"
+                    gain_xp(150) # Grant 150 XP for completing the main quest
                     # To prevent re-triggering, we rely on the quest status check.
             
             handle_look([]) # Automatically look around after moving
@@ -419,40 +682,63 @@ def handle_attack(args):
     enemy_index = -1
 
     # Find the enemy
-    for i, enemy in enumerate(location_data["enemies"]):
-        if target_name_part in enemy["name"].lower():
-            target_enemy = enemy
+    # Allow targeting by full name or parts of it, case insensitively
+    # Also, if multiple enemies of same type, target first one found.
+    # This could be improved to target specific instances if names are not unique (e.g. "rat 1", "rat 2")
+    for i, enemy_data in enumerate(location_data["enemies"]):
+        if target_name_part in enemy_data["name"].lower():
+            target_enemy = enemy_data
             enemy_index = i
             break
     
     if not target_enemy:
-        print(f"You don't see a '{target_name_part}' to attack here.")
+        print(f"You don't see any '{target_name_part}' to attack here.")
         return
 
     # --- Combat Round ---
-    print(f"\n--- Combat with {target_enemy['name']} ---")
+    enemy_name_display = target_enemy.get("name", "Mysterious Foe")
+    print(f"\n--- Combat with {enemy_name_display} ---")
 
     # Player's attack
     player_damage = player_stats["strength"] 
     target_enemy["health"] -= player_damage
-    print(f"You strike the {target_enemy['name']} for {player_damage} damage.")
+    print(f"You strike the {enemy_name_display} for {player_damage} damage.")
 
     if target_enemy["health"] <= 0:
-        print(f"You defeated the {target_enemy['name']}!")
-        # Add loot to room 
-        if target_enemy.get("loot"):
-            # Ensure items list exists
-            if "items" not in location_data:
-                location_data["items"] = []
-            location_data["items"].append(target_enemy["loot"])
-            print(f"The {target_enemy['name']} dropped a {target_enemy['loot']}.")
+        print(f"You defeated the {enemy_name_display}!")
         
-        location_data["enemies"].pop(enemy_index) # Remove defeated enemy
+        # Quest Kill Tracking
+        if "feral human" in enemy_name_display.lower(): # Check if it's any type of Feral Human
+            tunnel_quest = player_quests.get("tunnel_clearing_quest")
+            if isinstance(tunnel_quest, dict) and tunnel_quest.get("status") == "active":
+                tunnel_quest["humans_defeated"] = tunnel_quest.get("humans_defeated", 0) + 1
+                print(f"[Quest Update] Feral Humans defeated: {tunnel_quest['humans_defeated']}/{tunnel_quest['humans_required']}")
+
+        # Handle Loot Drop
+        possible_loot = target_enemy.get("loot")
+        if possible_loot:
+            dropped_item = None
+            if isinstance(possible_loot, list) and possible_loot: 
+                dropped_item = random.choice(possible_loot)
+            elif isinstance(possible_loot, str): 
+                dropped_item = possible_loot
+            
+            if dropped_item:
+                if "items" not in location_data: 
+                    location_data["items"] = []
+                location_data["items"].append(dropped_item)
+                print(f"The {enemy_name_display} dropped a {dropped_item}.")
         
-        # If no more enemies, clear the enemies list to be sure
-        if not location_data["enemies"]:
-            del location_data["enemies"]
-        return # Combat ends
+        location_data["enemies"].pop(enemy_index) 
+        
+        if not location_data["enemies"]: 
+            del location_data["enemies"] 
+        
+        xp_from_enemy = target_enemy.get("xp_value", 0)
+        if xp_from_enemy > 0:
+            gain_xp(xp_from_enemy)
+            
+        return 
 
     # Enemy's attack (if still alive)
     # Basic hit chance (optional, can be expanded)
@@ -515,7 +801,10 @@ commands = {
     "quests": handle_quests,
     "journal": handle_quests, # Alias for quests
     "talk": handle_talk,
-    "help": handle_help,      # New command
+    "help": handle_help,
+    "use": handle_use_item,
+    "save": handle_save_game, # New command
+    "load": handle_load_game, # New command
     "quit": handle_quit,
     "exit": handle_quit # Alias for quit
 }
@@ -532,17 +821,23 @@ def game_loop():
     if player_name:
         player_stats["name"] = player_name
     
-    # Initialize stats (can be more complex later)
+    # Initialize stats 
+    player_stats["name"] = player_name 
+    player_stats["level"] = 1
+    player_stats["xp"] = 0
+    player_stats["xp_to_next_level"] = 100 
     player_stats["max_health"] = 20
-    player_stats["current_health"] = player_stats["max_health"] # Start with full health
+    player_stats["current_health"] = player_stats["max_health"] 
     player_stats["strength"] = 5
     player_stats["agility"] = 3
+    player_stats["first_aid_skill"] = 1 # Initialize first aid skill
 
     # Initialize Quests
     global player_quests
     player_quests = {
-        "main_comms_array": "inactive", # Updated quest key
-        "side_librarian_glasses": "inactive"
+        "main_comms_array": "inactive", 
+        "side_librarian_glasses": "inactive",
+        "tunnel_clearing_quest": "inactive" # Initialize new quest
     }
     
     print(f"\nWelcome, {player_stats['name']}! Your adventure begins.")
